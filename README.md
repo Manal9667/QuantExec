@@ -1,4 +1,4 @@
-# Algorithmic Trade Execution Engine
+# QuantExec
 
 > A C++ execution engine for optimizing large-order execution using market microstructure, quantitative strategies, and machine learning.
 
