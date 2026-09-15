@@ -126,6 +126,7 @@ private:
     double synthetic_bid_price = 0.0;
     double synthetic_ask_price = 0.0;
     uint64_t next_synthetic_id = 1000000000;
+    uint64_t total_synthetic_volume_ = 0;  // running total for snapshot.volume
 
     /**
      * Cancel previous synthetic quotes (if still resting) and post new

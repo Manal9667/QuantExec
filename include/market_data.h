@@ -32,6 +32,30 @@ struct MarketState {
 using MarketSnapshot = MarketState;
 
 /**
+ * Internal normalized representation for a market-data event.
+ *
+ * This is intentionally vendor-independent. Raw data is first read, validated,
+ * and then converted into these objects before the execution engine sees it.
+ */
+enum class EventType {
+    Trade,
+    BestBid,
+    BestAsk,
+    DepthUpdate,
+    Snapshot
+};
+
+struct MarketEvent {
+    uint64_t timestamp_ms = 0;
+    EventType type = EventType::Snapshot;
+    std::string symbol;
+    double price = 0.0;
+    uint64_t quantity = 0;
+    OrderSide side = OrderSide::Buy;
+    int level = 0;
+};
+
+/**
  * Pull-style feed. next() must be chronological: no future information.
  */
 class MarketDataSource {
@@ -39,6 +63,8 @@ public:
     virtual ~MarketDataSource() = default;
     virtual bool next(MarketState& out) = 0;
     virtual void reset() = 0;
+    virtual void seek(uint64_t timestamp_ms) = 0;
+    virtual uint64_t current_time_ms() const = 0;
     virtual std::string name() const = 0;
 };
 
@@ -51,11 +77,14 @@ public:
     explicit VectorMarketSource(std::vector<MarketState> states);
     bool next(MarketState& out) override;
     void reset() override;
+    void seek(uint64_t timestamp_ms) override;
+    uint64_t current_time_ms() const override { return current_time_ms_; }
     std::string name() const override { return "vector"; }
 
 private:
     std::vector<MarketState> states_;
     size_t index_ = 0;
+    uint64_t current_time_ms_ = 0;
 };
 
 class RealtimeMarketSource : public MarketDataSource {
@@ -63,12 +92,15 @@ public:
     bool publish(MarketState state);
     bool next(MarketState& out) override;
     void reset() override;
+    void seek(uint64_t timestamp_ms) override;
+    uint64_t current_time_ms() const override { return current_time_ms_; }
     std::string name() const override { return "realtime"; }
 
 private:
     std::vector<MarketState> states_;
     size_t index_ = 0;
     uint64_t last_timestamp_ms_ = 0;
+    uint64_t current_time_ms_ = 0;
 };
 
 /**
@@ -86,14 +118,21 @@ public:
     explicit CsvMarketSource(std::string path);
     bool next(MarketState& out) override;
     void reset() override;
+    void seek(uint64_t timestamp_ms) override;
+    uint64_t current_time_ms() const override { return current_time_ms_; }
     std::string name() const override { return "csv"; }
     bool ok() const { return loaded_; }
+
+    void set_time_window(uint64_t start_time_ms, uint64_t end_time_ms);
 
 private:
     std::string path_;
     std::vector<MarketState> states_;
     size_t index_ = 0;
     bool loaded_ = false;
+    uint64_t start_time_ms_ = 0;
+    uint64_t end_time_ms_ = UINT64_MAX;
+    uint64_t current_time_ms_ = 0;
 
     void load();
 };

@@ -96,6 +96,22 @@ void MarketSimulator::run_backtest(
         refresh_synthetic_quotes();
 
         const uint64_t qty = liquidity.quoted_quantity();
+
+        // Model a plausible per-tick "market volume" independent of our own
+        // strategy order. This simulator only ever matches our own strategy
+        // order against static synthetic liquidity - there is no separate
+        // population of other traders actually consuming that liquidity - so
+        // this is an illustrative volume model (a random fraction of the
+        // quoted size), NOT a quantity derived from real matched trades.
+        // Without SOME per-tick volume, ExecutionSession::run() (which reads
+        // bar_volume/volume, not the engine's trade list) computes
+        // market_vwap as a silent zero for every synthetic backtest, which
+        // makes vwap_deviation meaningless. This keeps that metric real
+        // without pretending the underlying volume is anything but modeled.
+        std::uniform_real_distribution<> utilization(0.10, 0.60);
+        const uint64_t tick_volume = static_cast<uint64_t>(qty * utilization(rng));
+        total_synthetic_volume_ += tick_volume;
+
         MarketSnapshot snapshot;
         snapshot.last_price = current_price;
         snapshot.mid_price = current_price;
@@ -103,6 +119,8 @@ void MarketSimulator::run_backtest(
         snapshot.ask = synthetic_ask_price;
         snapshot.bid_volume = qty;
         snapshot.ask_volume = qty;
+        snapshot.volume = total_synthetic_volume_;
+        snapshot.bar_volume = tick_volume;
         snapshot.timestamp_ms = static_cast<uint64_t>(tick * 100);
         snapshot.bids = {{synthetic_bid_price, qty}};
         snapshot.asks = {{synthetic_ask_price, qty}};

@@ -1,0 +1,31 @@
+# Phase 2 (spec section 37): containerize only what's useful - the backend
+# (which needs a real C++ toolchain to build the engine) and the frontend
+# dashboard. Datasets and the SQLite file are bind-mounted so results
+# persist across container restarts and stay easy to inspect from the host.
+#
+# Usage:
+#   docker compose up --build
+#   Backend:  http://localhost:8000  (docs at /docs)
+#   Frontend: http://localhost:5173
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./datasets:/app/datasets:ro
+      - ./experiments:/app/experiments
+    environment:
+      - PYTHONUNBUFFERED=1
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend

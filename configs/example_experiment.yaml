@@ -1,0 +1,39 @@
+# Reproducible experiment configuration (Phase 1, section 21).
+#
+# `dataset` + this config should always produce the same ExecutionResult -
+# there is no randomness anywhere in the CsvMarketSource -> ExecutionSession
+# -> TransactionCostModel path. Run it with:
+#
+#   python3 python/run_experiment.py configs/example_experiment.yaml
+#
+# Swap `strategy` to compare TWAP vs VWAP while holding everything else
+# (dataset, quantity, window, costs) fixed - see section 22.
+
+symbol: SYN   # synthetic dev fixture, NOT real market data - see docs/DATASET.md
+dataset: datasets/sample_synthetic.csv
+
+side: BUY
+quantity: 1000
+
+# Execution horizon. slices controls how many child orders TWAP/VWAP split
+# `quantity` into; the strategy submits one child order per market event it
+# observes, up to `slices` orders total.
+slices: 6
+
+strategy: TWAP   # TWAP | VWAP
+# Volume profile is only used when strategy is VWAP. If omitted, VWAP falls
+# back to an even split (identical to TWAP) - see algorithms.h.
+volume_profile: [0.30, 0.25, 0.20, 0.10, 0.10, 0.05]
+
+# Marketable limit price for every child order. Left null to derive it from
+# the dataset's first row (first ask * 1.02), matching run_phase3_backtest.py.
+limit_price: null
+
+# Benchmark price used for slippage / implementation shortfall. Left null to
+# derive it from the dataset's first row mid price.
+arrival_price: null
+
+costs:
+  commission_bps: 0.5
+  exchange_fee_bps: 0.1
+  fixed_fee_per_fill: 0.0

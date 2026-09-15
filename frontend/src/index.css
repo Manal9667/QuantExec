@@ -1,0 +1,91 @@
+/* Restrained functional styling only - spec section 34 explicitly says not
+   to spend much time on visual polish here; the frontend is a
+   visualization layer, not the centerpiece of this project. */
+
+:root {
+  color-scheme: light;
+  --bg: #f7f7f8;
+  --panel: #ffffff;
+  --border: #e2e2e5;
+  --text: #1c1c1f;
+  --muted: #6b6b73;
+  --accent: #2451c9;
+  --bad: #b3261e;
+  --good: #1a7f37;
+  font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body { margin: 0; background: var(--bg); color: var(--text); }
+
+.app { max-width: 1080px; margin: 0 auto; padding: 24px; }
+
+.nav {
+  display: flex; gap: 8px; margin-bottom: 24px;
+  border-bottom: 1px solid var(--border); padding-bottom: 12px;
+}
+
+.nav button {
+  background: none; border: none; padding: 8px 14px; border-radius: 6px;
+  cursor: pointer; font-size: 14px; color: var(--muted);
+}
+
+.nav button.active { background: var(--accent); color: white; }
+
+.panel {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 10px; padding: 20px; margin-bottom: 20px;
+}
+
+.stat-row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+
+.stat {
+  flex: 1; min-width: 130px; background: var(--panel);
+  border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px;
+}
+
+.stat .label {
+  font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em;
+}
+
+.stat .value { font-size: 22px; font-weight: 600; margin-top: 4px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+
+th { color: var(--muted); font-weight: 500; text-transform: uppercase; font-size: 11px; }
+
+tr.clickable { cursor: pointer; }
+tr.clickable:hover { background: #f0f1f6; }
+
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+.form-grid label {
+  display: flex; flex-direction: column; font-size: 13px; color: var(--muted); gap: 4px;
+}
+
+.form-grid input, .form-grid select {
+  padding: 7px 9px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px;
+}
+
+button.primary {
+  background: var(--accent); color: white; border: none; border-radius: 6px;
+  padding: 10px 18px; font-size: 14px; cursor: pointer; margin-top: 16px;
+}
+
+button.primary:disabled { opacity: 0.6; cursor: default; }
+
+.pill {
+  display: inline-block; padding: 2px 8px; border-radius: 999px;
+  font-size: 11px; font-weight: 600;
+}
+
+.pill.completed { background: #e5f4e8; color: var(--good); }
+.pill.failed { background: #fbe9e7; color: var(--bad); }
+.pill.running { background: #eef1f8; color: var(--accent); }
+
+.error-text { color: var(--bad); font-size: 13px; margin-top: 8px; }
+
+.muted { color: var(--muted); font-size: 13px; }

@@ -1,5 +1,6 @@
 #include "algorithms.h"
 #include <numeric>
+#include <stdexcept>
 
 /**
  * TWAPAlgorithm::generate_orders()
@@ -169,4 +170,55 @@ std::vector<Order> AdaptiveAlgorithm::generate_orders(
     // For now, use TWAP as baseline
     TWAPAlgorithm twap;
     return twap.generate_orders(parent_order_id, side, total_qty, limit_price, num_slices);
+}
+
+
+/**
+ * POVAlgorithm::generate_orders()
+ *
+ * See the class comment in algorithms.h for why this throws instead of
+ * returning a precomputed schedule: POV needs realized market volume,
+ * which does not exist yet at schedule-build time. Use
+ * ExecutionSession::run_pov() for real POV execution.
+ */
+std::vector<Order> POVAlgorithm::generate_orders(
+    uint64_t /*parent_order_id*/,
+    OrderSide /*side*/,
+    uint64_t /*total_qty*/,
+    double /*limit_price*/,
+    int /*num_slices*/
+) {
+    throw std::logic_error(
+        "POVAlgorithm::generate_orders() is not supported: POV sizes each "
+        "child order from realized market volume observed during replay, "
+        "which is not known ahead of time. Use "
+        "ExecutionSession::run_pov(source, side, total_qty, limit_price, "
+        "pov, arrival_price) instead."
+    );
+}
+
+/**
+ * POVAlgorithm::next_order_qty()
+ *
+ * Time complexity: O(1). Pure function: does not touch the book, the
+ * engine, or any strategy-internal fill bookkeeping (spec section 12).
+ */
+uint64_t POVAlgorithm::next_order_qty(uint64_t event_market_volume, uint64_t remaining_qty) const {
+    if (remaining_qty == 0 || event_market_volume == 0 || participation_rate_ <= 0.0) {
+        return 0;
+    }
+
+    double raw = participation_rate_ * static_cast<double>(event_market_volume);
+    uint64_t qty = static_cast<uint64_t>(raw + 0.5); // round to nearest share
+
+    if (max_order_qty_ > 0 && qty > max_order_qty_) {
+        qty = max_order_qty_;
+    }
+    if (qty > remaining_qty) {
+        qty = remaining_qty;
+    }
+    if (qty < min_order_qty_) {
+        return 0;
+    }
+    return qty;
 }
