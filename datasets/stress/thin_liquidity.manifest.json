@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0",
+  "file": "datasets/stress/thin_liquidity.csv",
+  "sha256": "e1dae61faa354413679d51db3714f0e0e93941efe2c85043a6cc610d2b070a97",
+  "row_count": 5,
+  "columns": [
+    "timestamp_ms",
+    "last",
+    "bid",
+    "ask",
+    "bid_size",
+    "ask_size",
+    "volume",
+    "bar_volume"
+  ],
+  "start_timestamp_ms": 1000,
+  "end_timestamp_ms": 5000,
+  "data_type": "synthetic",
+  "provider": null,
+  "source_url": null,
+  "license": null,
+  "timezone": null,
+  "symbol": null,
+  "venue": null,
+  "resolution": null,
+  "notes": "Stress-test fixture (Step 4), not real market data."
+}

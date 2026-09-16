@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0",
+  "file": "datasets/stress/wide_spread.csv",
+  "sha256": "da722340b599009b9211ff4a286307b9d6927081168b953b84ad04b8e49ad37f",
+  "row_count": 5,
+  "columns": [
+    "timestamp_ms",
+    "last",
+    "bid",
+    "ask",
+    "bid_size",
+    "ask_size",
+    "volume",
+    "bar_volume"
+  ],
+  "start_timestamp_ms": 1000,
+  "end_timestamp_ms": 5000,
+  "data_type": "synthetic",
+  "provider": null,
+  "source_url": null,
+  "license": null,
+  "timezone": null,
+  "symbol": null,
+  "venue": null,
+  "resolution": null,
+  "notes": "Stress-test fixture (Step 4), not real market data."
+}

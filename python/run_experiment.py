@@ -87,7 +87,7 @@ def run(config: dict):
     if not source.ok():
         raise RuntimeError(
             f"Could not load dataset '{config['dataset']}' - check the path and "
-            "the required CSV columns documented in docs/DATASET.md"
+            "the required CSV columns documented in dataset.md"
         )
 
     session = ExecutionSession()

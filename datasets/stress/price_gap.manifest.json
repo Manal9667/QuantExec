@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0",
+  "file": "datasets/stress/price_gap.csv",
+  "sha256": "88d64b806c242d329cbfe509100b9e8b2d06d4c0f0d0c876b897733fbf00a49d",
+  "row_count": 5,
+  "columns": [
+    "timestamp_ms",
+    "last",
+    "bid",
+    "ask",
+    "bid_size",
+    "ask_size",
+    "volume",
+    "bar_volume"
+  ],
+  "start_timestamp_ms": 1000,
+  "end_timestamp_ms": 5000,
+  "data_type": "synthetic",
+  "provider": null,
+  "source_url": null,
+  "license": null,
+  "timezone": null,
+  "symbol": null,
+  "venue": null,
+  "resolution": null,
+  "notes": "Stress-test fixture (Step 4), not real market data."
+}

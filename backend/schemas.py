@@ -114,6 +114,7 @@ class ExperimentSummaryOut(BaseModel):
     quantity: int
     strategy: str
     status: str
+    dataset_checksum: Optional[str] = None
     filled_quantity: Optional[int] = None
     requested_quantity: Optional[int] = None
     fill_rate: Optional[float] = None
@@ -134,9 +135,32 @@ class ExperimentDetailOut(BaseModel):
     status: str
     error: Optional[str] = None
     config: dict
+    dataset_checksum: Optional[str] = None
+    config_hash: Optional[str] = None
+    duplicate_of: Optional[int] = Field(
+        default=None,
+        description=(
+            "Set when this response reuses an earlier experiment with an "
+            "identical configuration and dataset checksum, instead of "
+            "re-running the engine (Step 6 duplicate-submission policy). "
+            "Refers to the experiment id whose result is being reused."
+        ),
+    )
     metrics: Optional[ExecutionMetricsOut] = None
     costs: Optional[CostBreakdownOut] = None
     impact: Optional[ImpactEstimateOut] = None
+
+
+class ErrorOut(BaseModel):
+    """Structured error body for request-level failures (Step 6: 'return
+    structured validation errors' instead of a bare string). Every
+    ExperimentError the API raises carries an `error_type` from a known,
+    documented set (see experiment_service.ExperimentError) so a client
+    can branch on it programmatically instead of pattern-matching on
+    human-readable text."""
+
+    error_type: str
+    detail: str
 
 
 class StrategyInfo(BaseModel):

@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0",
+  "file": "datasets/stress/rapid_price_change.csv",
+  "sha256": "1ffe8a88f1571f7dc25f945e6d89978d49b4212d9c9cec5b4af4fcfc94cf0160",
+  "row_count": 6,
+  "columns": [
+    "timestamp_ms",
+    "last",
+    "bid",
+    "ask",
+    "bid_size",
+    "ask_size",
+    "volume",
+    "bar_volume"
+  ],
+  "start_timestamp_ms": 1000,
+  "end_timestamp_ms": 1500,
+  "data_type": "synthetic",
+  "provider": null,
+  "source_url": null,
+  "license": null,
+  "timezone": null,
+  "symbol": null,
+  "venue": null,
+  "resolution": null,
+  "notes": "Stress-test fixture (Step 4), not real market data."
+}
