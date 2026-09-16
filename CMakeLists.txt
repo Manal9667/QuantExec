@@ -35,6 +35,7 @@ find_package(pybind11 CONFIG REQUIRED)
      src/algorithms.cpp
     src/costs.cpp
     src/impact.cpp
+    src/replay.cpp
  )
 
 # Compiler options
@@ -104,12 +105,28 @@ add_test(NAME test_costs COMMAND test_costs)
 add_executable(test_phase2 tests/test_phase2.cpp)
 target_link_libraries(test_phase2 executor_lib)
 add_test(NAME test_phase2 COMMAND test_phase2)
+
+# Step 3: formal event/replay pipeline
+add_executable(test_replay tests/test_replay.cpp)
+target_link_libraries(test_replay executor_lib)
+add_test(NAME test_replay COMMAND test_replay WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+# Step 4: execution realism under stressed market conditions
+add_executable(test_stress tests/test_stress.cpp)
+target_link_libraries(test_stress executor_lib)
+add_test(NAME test_stress COMMAND test_stress WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 # ============================================================================
 # BENCHMARKS (Phase 6)
 # ============================================================================
 
 add_executable(benchmark benchmarks/benchmark.cpp)
 target_link_libraries(benchmark executor_lib)
+
+# Step 7: evidence-based benchmark protocol (separate binary; see
+# docs/BENCHMARKING.md). Kept alongside the original `benchmark` above
+# rather than replacing it.
+add_executable(benchmark_v2 benchmarks/benchmark_v2.cpp)
+target_link_libraries(benchmark_v2 executor_lib)
 
 # Optional: Add benchmark as a test
 # add_test(NAME benchmark COMMAND benchmark)

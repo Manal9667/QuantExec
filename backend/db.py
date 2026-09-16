@@ -23,6 +23,12 @@ from typing import Any, Iterator, Optional
 
 DEFAULT_DB_PATH = Path(__file__).resolve().parent.parent / "experiments" / "experiments.db"
 
+# Step 6: explicit experiment state machine. queued -> running -> one of
+# {completed, failed, cancelled}. Centralized here so main.py and
+# experiment_service.py both validate against the same set instead of
+# each hardcoding its own strings.
+EXPERIMENT_STATUSES = ("queued", "running", "completed", "failed", "cancelled")
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS experiments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -34,7 +40,9 @@ CREATE TABLE IF NOT EXISTS experiments (
     strategy TEXT NOT NULL,
     config_json TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'completed',
-    error TEXT
+    error TEXT,
+    dataset_checksum TEXT,
+    config_hash TEXT
 );
 
 CREATE TABLE IF NOT EXISTS execution_runs (
@@ -95,24 +103,63 @@ CREATE TABLE IF NOT EXISTS dataset_metadata (
 _local = threading.local()
 
 
-def get_connection(db_path: Path = DEFAULT_DB_PATH) -> sqlite3.Connection:
+def _migrate_schema(conn: sqlite3.Connection) -> None:
+    """Additive, idempotent migration for columns introduced after the
+    original CREATE TABLE (Step 6: dataset checksum + config hash for
+    reproducibility). CREATE TABLE IF NOT EXISTS above does not add
+    columns to a database file that already existed before this change,
+    so we check for them explicitly and ALTER TABLE if missing - this is
+    the whole migration, on purpose: no external migration framework for
+    two nullable columns (spec section 40, Rule 9: no unjustified
+    dependencies)."""
+    existing_columns = {row["name"] for row in conn.execute("PRAGMA table_info(experiments)")}
+    if "dataset_checksum" not in existing_columns:
+        conn.execute("ALTER TABLE experiments ADD COLUMN dataset_checksum TEXT")
+    if "config_hash" not in existing_columns:
+        conn.execute("ALTER TABLE experiments ADD COLUMN config_hash TEXT")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_experiments_config_hash ON experiments(config_hash)")
+    conn.commit()
+
+
+def get_connection(db_path: Optional[Path] = None) -> sqlite3.Connection:
     """One connection per thread (FastAPI's default threadpool executor uses
     multiple worker threads; sqlite3 connections are not safe to share
     across threads without check_same_thread=False + external locking, so
-    each thread gets its own)."""
-    conn = getattr(_local, "conn", None)
-    if conn is None:
-        db_path.parent.mkdir(parents=True, exist_ok=True)
-        conn = sqlite3.connect(str(db_path))
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA foreign_keys = ON")
-        conn.executescript(SCHEMA)
-        _local.conn = conn
+    each thread gets its own).
+
+    `db_path` defaults to the *current* value of `db.DEFAULT_DB_PATH`,
+    read at call time rather than bound as a function-default at import
+    time - this is what lets tests point the whole module at a temporary
+    database by reassigning `db.DEFAULT_DB_PATH` (see
+    backend/tests/test_api_reproducibility.py), instead of silently
+    falling back to the original path a bound default would have
+    captured.
+    """
+    if db_path is None:
+        db_path = DEFAULT_DB_PATH
+    cached = getattr(_local, "conn", None)
+    cached_path = getattr(_local, "conn_path", None)
+    if cached is not None and cached_path == db_path:
+        return cached
+    # No cached connection for this thread, or it was opened against a
+    # different path than the one being asked for now (e.g. a test
+    # reassigning db.DEFAULT_DB_PATH to a temp file) - (re)open rather
+    # than silently keep serving a connection to the wrong database.
+    if cached is not None:
+        cached.close()
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(db_path))
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.executescript(SCHEMA)
+    _migrate_schema(conn)
+    _local.conn = conn
+    _local.conn_path = db_path
     return conn
 
 
 @contextmanager
-def transaction(db_path: Path = DEFAULT_DB_PATH) -> Iterator[sqlite3.Connection]:
+def transaction(db_path: Optional[Path] = None) -> Iterator[sqlite3.Connection]:
     conn = get_connection(db_path)
     try:
         yield conn
@@ -134,14 +181,33 @@ def insert_experiment(
     config: dict,
     status: str = "completed",
     error: Optional[str] = None,
+    dataset_checksum: Optional[str] = None,
+    config_hash: Optional[str] = None,
 ) -> int:
     cur = conn.execute(
         """INSERT INTO experiments
-           (created_at, symbol, dataset, side, quantity, strategy, config_json, status, error)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-        (created_at, symbol, dataset, side, quantity, strategy, json.dumps(config), status, error),
+           (created_at, symbol, dataset, side, quantity, strategy, config_json, status, error,
+            dataset_checksum, config_hash)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (created_at, symbol, dataset, side, quantity, strategy, json.dumps(config), status, error,
+         dataset_checksum, config_hash),
     )
     return int(cur.lastrowid)
+
+
+def find_completed_experiment_by_config_hash(
+    conn: sqlite3.Connection, config_hash: str
+) -> Optional[sqlite3.Row]:
+    """Step 6, 'define behavior for duplicate experiment submissions':
+    an identical (config + dataset checksum) request that already
+    completed successfully is returned as-is rather than re-run. Only
+    'completed' rows are eligible - a duplicate of a 'failed' or
+    'cancelled' run should be retried, not have its failure handed back."""
+    return conn.execute(
+        "SELECT * FROM experiments WHERE config_hash = ? AND status = 'completed' "
+        "ORDER BY id ASC LIMIT 1",
+        (config_hash,),
+    ).fetchone()
 
 
 def insert_execution_run(conn: sqlite3.Connection, experiment_id: int, result: dict) -> None:
@@ -220,6 +286,19 @@ def upsert_dataset_metadata(conn: sqlite3.Connection, dataset: str, meta: dict) 
             meta.get("data_type"),
             meta.get("notes"),
         ),
+    )
+
+
+def update_experiment_status(
+    conn: sqlite3.Connection, experiment_id: int, status: str, error: Optional[str] = None
+) -> None:
+    """Central place every status transition goes through (Step 6: queued
+    -> running -> completed | failed | cancelled), so the set of valid
+    status strings lives in one place rather than being retyped at each
+    call site."""
+    conn.execute(
+        "UPDATE experiments SET status = ?, error = ? WHERE id = ?",
+        (status, error, experiment_id),
     )
 
 

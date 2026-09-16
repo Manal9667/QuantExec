@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0",
+  "file": "datasets/stress/incomplete_depth.csv",
+  "sha256": "93fcd0ac03855469d5b521055ee8f18e8888d1e8013d17b1c46e5cbaf9670ca0",
+  "row_count": 5,
+  "columns": [
+    "timestamp_ms",
+    "last",
+    "bid",
+    "ask",
+    "bid_size",
+    "ask_size",
+    "volume",
+    "bar_volume",
+    "bid_depth",
+    "ask_depth"
+  ],
+  "start_timestamp_ms": 1000,
+  "end_timestamp_ms": 5000,
+  "data_type": "synthetic",
+  "provider": null,
+  "source_url": null,
+  "license": null,
+  "timezone": null,
+  "symbol": null,
+  "venue": null,
+  "resolution": null,
+  "notes": "Stress-test fixture (Step 4), not real market data."
+}

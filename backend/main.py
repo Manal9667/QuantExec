@@ -19,12 +19,21 @@ from typing import Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 import db
-from experiment_service import STRATEGIES, ExperimentError, run_experiment
+from experiment_service import (
+    STRATEGIES,
+    ExperimentError,
+    compute_config_hash,
+    compute_dataset_checksum,
+    resolve_dataset_path,
+    run_experiment,
+)
 from logging_utils import log_event
 from schemas import (
     CostBreakdownOut,
+    ErrorOut,
     ExecutionMetricsOut,
     ExperimentDetailOut,
     ExperimentRequest,
@@ -54,6 +63,21 @@ app.add_middleware(
 )
 
 
+@app.exception_handler(ExperimentError)
+def handle_experiment_error(request, exc: ExperimentError):
+    """Step 6: 'return structured validation errors'. Every ExperimentError
+    becomes {"error_type": ..., "detail": ...} instead of FastAPI's default
+    bare-string `detail`, so a client can branch on `error_type` without
+    parsing English prose. dataset_path_unsafe is the one case treated as
+    a stricter client error (403) since it's a boundary violation attempt,
+    not an ordinary mistake; everything else is 400."""
+    status_code = 403 if exc.error_type == "dataset_path_unsafe" else 400
+    return JSONResponse(
+        status_code=status_code,
+        content=ErrorOut(error_type=exc.error_type, detail=str(exc)).model_dump(),
+    )
+
+
 @app.get("/strategies", response_model=list[StrategyInfo])
 def list_strategies():
     """Static description of what each strategy actually needs - reflects
@@ -62,9 +86,37 @@ def list_strategies():
 
 
 @app.post("/experiments", response_model=ExperimentDetailOut, status_code=201)
-def create_experiment(req: ExperimentRequest):
+def create_experiment(req: ExperimentRequest, allow_duplicate: bool = False):
+    """Run one experiment through the real engine.
+
+    Step 6 duplicate-submission policy: if an experiment with an
+    identical request body AND an identical dataset checksum already
+    completed successfully, that result is returned as-is (with
+    `duplicate_of` set) instead of re-running the engine - the same
+    inputs are guaranteed to produce the same outputs (see BASELINE.md
+    §3.4), so re-running would only burn time for an identical answer.
+    Pass `?allow_duplicate=true` to force a fresh run anyway (e.g. to
+    verify determinism, or after fixing something the config_hash can't see
+    like the engine binary itself).
+    """
     conn = db.get_connection()
     created_at = dt.datetime.utcnow().isoformat()
+
+    # Resolve + checksum the dataset up front. A bad dataset path is
+    # exactly the kind of "invalid configuration" Step 6 wants surfaced
+    # clearly and early, via the structured-error handler above, before
+    # any row is even written.
+    dataset_path = resolve_dataset_path(req.dataset)
+    dataset_checksum = compute_dataset_checksum(dataset_path)
+    config_hash = compute_config_hash(req, dataset_checksum)
+
+    if not allow_duplicate:
+        existing = db.find_completed_experiment_by_config_hash(conn, config_hash)
+        if existing is not None:
+            log_event("experiment_duplicate_reused", experiment_id=existing["id"], config_hash=config_hash)
+            detail = _load_experiment_detail(existing["id"])
+            detail.duplicate_of = existing["id"]
+            return detail
 
     experiment_id = db.insert_experiment(
         conn,
@@ -75,27 +127,60 @@ def create_experiment(req: ExperimentRequest):
         quantity=req.quantity,
         strategy=req.strategy,
         config=req.model_dump(),
-        status="running",
+        status="queued",
+        dataset_checksum=dataset_checksum,
+        config_hash=config_hash,
     )
+    conn.commit()
+
+    db.update_experiment_status(conn, experiment_id, "running")
     conn.commit()
 
     try:
         run = run_experiment(req)
     except ExperimentError as exc:
-        conn.execute(
-            "UPDATE experiments SET status = ?, error = ? WHERE id = ?",
-            ("failed", str(exc), experiment_id),
-        )
+        db.update_experiment_status(conn, experiment_id, "failed", str(exc))
         conn.commit()
-        log_event("experiment_failed", experiment_id=experiment_id, error=str(exc))
-        raise HTTPException(status_code=400, detail=str(exc))
+        log_event("experiment_failed", experiment_id=experiment_id, error_type=exc.error_type, error=str(exc))
+        raise
 
     with db.transaction() as conn:
         db.insert_execution_run(conn, experiment_id, run.result)
         db.insert_fills(conn, experiment_id, run.fills)
         db.insert_strategy_result(conn, experiment_id, run.costs, run.impact)
-        conn.execute("UPDATE experiments SET status = ? WHERE id = ?", ("completed", experiment_id))
+        db.update_experiment_status(conn, experiment_id, "completed")
 
+    return _load_experiment_detail(experiment_id)
+
+
+@app.delete("/experiments/{experiment_id}", response_model=ExperimentDetailOut)
+def cancel_experiment(experiment_id: int):
+    """Step 6 'cancelled' state.
+
+    Honest limitation: experiment execution in this backend is synchronous
+    (the engine runs to completion inside the POST /experiments request
+    handler before it returns), so there is no in-flight run for this
+    endpoint to interrupt under normal operation - by the time a client
+    could call DELETE, POST has already returned 'completed' or 'failed'.
+    This endpoint exists for the one case a status can legitimately still
+    be 'running': the server process crashed or was killed mid-request,
+    leaving a row stuck in 'running' with no execution behind it. Marking
+    that row 'cancelled' is what unblocks a duplicate-submission retry of
+    the same config (see the config_hash lookup above, which only matches
+    'completed' rows). A future async/queued execution mode is what would
+    make this endpoint able to interrupt a genuinely in-flight run.
+    """
+    conn = db.get_connection()
+    exp = db.get_experiment(conn, experiment_id)
+    if exp is None:
+        raise HTTPException(status_code=404, detail=f"Experiment {experiment_id} not found")
+    if exp["status"] != "running":
+        raise HTTPException(
+            status_code=409,
+            detail=f"Experiment {experiment_id} is '{exp['status']}', not 'running' - nothing to cancel",
+        )
+    db.update_experiment_status(conn, experiment_id, "cancelled", "Cancelled via DELETE /experiments/{id}")
+    conn.commit()
     return _load_experiment_detail(experiment_id)
 
 
@@ -113,6 +198,7 @@ def list_experiments(limit: int = 100):
             quantity=r["quantity"],
             strategy=r["strategy"],
             status=r["status"],
+            dataset_checksum=r["dataset_checksum"],
             filled_quantity=r["filled_quantity"],
             requested_quantity=r["requested_quantity"],
             fill_rate=r["fill_rate"],
@@ -162,6 +248,8 @@ def _load_experiment_detail(experiment_id: int) -> ExperimentDetailOut:
         status=exp["status"],
         error=exp["error"],
         config=json.loads(exp["config_json"]),
+        dataset_checksum=exp["dataset_checksum"],
+        config_hash=exp["config_hash"],
         metrics=metrics,
         costs=costs,
         impact=impact,

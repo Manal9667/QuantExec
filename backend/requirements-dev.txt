@@ -1,0 +1,4 @@
+# Test-only dependencies, kept separate from requirements.txt so a
+# production install doesn't pull in a test HTTP client it never uses.
+# Install with: pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+httpx>=0.27

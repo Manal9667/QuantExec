@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0",
+  "file": "datasets/sample_synthetic.csv",
+  "sha256": "ad2dd7b018a5b1f574ebac1431493a74d4d6399f466128bec29eff7c8e392dd3",
+  "row_count": 15,
+  "columns": [
+    "timestamp_ms",
+    "last",
+    "bid",
+    "ask",
+    "bid_size",
+    "ask_size",
+    "volume",
+    "bar_volume",
+    "bid_depth",
+    "ask_depth"
+  ],
+  "start_timestamp_ms": 1000,
+  "end_timestamp_ms": 15000,
+  "data_type": "synthetic",
+  "provider": null,
+  "source_url": null,
+  "license": null,
+  "timezone": null,
+  "symbol": "SYN",
+  "venue": null,
+  "resolution": "synthetic top-of-book ticks",
+  "notes": "Deterministic fixture, not real market data."
+}

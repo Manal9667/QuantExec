@@ -35,35 +35,60 @@ full test suite + a determinism check) as this documentation was written
 **Requires:** a C++17/20 compiler, CMake ≥ 3.15, Python ≥ 3.10, pybind11,
 Node.js (for the frontend).
 
+### Windows (recommended in this workspace)
+
+```powershell
+# 1. Create a local environment for backend tests
+python -m venv .venv
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r backend\requirements.txt -r backend\requirements-dev.txt
+
+# 2. Build (Release)
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --config Release
+
+# 3. C++ tests (10 suites)
+ctest --test-dir build -C Release --output-on-failure
+
+# 4. Backend tests
+$env:PYTHONPATH = "build\Release"
+python -m unittest discover -s backend/tests -v
+
+# 5. Frontend build
+Push-Location frontend
+npm install
+npm run build
+Pop-Location
+
+# 6. Run one reproducible experiment
+$env:PYTHONPATH = "build\Release"
+python python/run_experiment.py configs/example_experiment.yaml
+
+# 7. Run the backend + dashboard locally
+uvicorn backend.main:app --reload --port 8000           # in one terminal
+Push-Location frontend; npm run dev; Pop-Location        # in another
+```
+
+### Linux / macOS
+
 ```bash
-# 1. Build (Release)
+python3 -m venv .venv
+. .venv/bin/activate
+python3 -m pip install -r backend/requirements.txt -r backend/requirements-dev.txt
 mkdir -p build && cd build
 cmake -DCMAKE_BUILD_TYPE=Release \
       -Dpybind11_DIR="$(python3 -c 'import pybind11; print(pybind11.get_cmake_dir())')" ..
 cmake --build . --config Release -j"$(nproc)"
 cd ..
-
-# 2. C++ tests (10 suites)
-ctest --test-dir build --output-on-failure
-
-# 3. Backend tests (44 tests)
-pip install -r backend/requirements.txt -r backend/requirements-dev.txt
 PYTHONPATH=build python3 -m unittest discover -s backend/tests -v
-
-# 4. Frontend build
-cd frontend && npm install && npm run build && cd ..
-
-# 5. Run one reproducible experiment
 PYTHONPATH=build python3 python/run_experiment.py configs/example_experiment.yaml
-
-# 6. Run the backend + dashboard locally
-PYTHONPATH=build uvicorn backend.main:app --reload --port 8000   # in one terminal
-cd frontend && npm run dev                                        # in another
 ```
 
-Every command above is exactly what `BASELINE.md` and this repository's
-own test suites run — there is no separate "demo mode" with different,
-easier-to-pass behavior.
+Every command above is exactly what this repository's current tests and
+scripts expect for a local run. The key portability detail is that on
+Windows the compiled Python extension sits under `build/Release`, not
+`build`.
 
 ## Data: synthetic vs. historical
 

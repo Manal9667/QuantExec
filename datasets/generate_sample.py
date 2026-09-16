@@ -3,7 +3,7 @@ Generates datasets/sample_synthetic.csv.
 
 This is a small, fully synthetic, deterministic (seed=42) top-of-book +
 2-level-depth fixture used for local development, demos, and the example
-experiment config. It is NOT real market data - see docs/DATASET.md for
+experiment config. It is NOT real market data - see dataset.md for
 where the real historical data pipeline lives (python/alpaca_historical.py)
 and why no real dataset is committed to this repository.
 

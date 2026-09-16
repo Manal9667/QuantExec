@@ -19,6 +19,8 @@ coupling a library import to a Phase 1 script's CLI concerns.
 from __future__ import annotations
 
 import csv
+import hashlib
+import json
 import math
 import statistics
 from dataclasses import dataclass, field
@@ -46,7 +48,23 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 class ExperimentError(ValueError):
     """Raised for request-level problems (bad dataset, bad config) so
-    main.py can turn them into a 400 instead of a 500."""
+    main.py can turn them into a structured 4xx instead of a 500.
+
+    `error_type` is one of a small, documented, stable set of machine-
+    readable reasons (Step 6: 'return structured validation errors') -
+    the message text is for humans, `error_type` is for client code that
+    wants to branch on the failure without string-matching:
+
+        dataset_not_found   - the dataset path doesn't exist under the repo
+        dataset_path_unsafe - the path tried to escape the repo root
+        dataset_unloadable  - the file exists but the engine couldn't load it
+                               (see scripts/build_dataset_manifest.py for why)
+        unknown_strategy    - strategy isn't one of TWAP/VWAP/POV
+    """
+
+    def __init__(self, message: str, error_type: str = "invalid_request"):
+        super().__init__(message)
+        self.error_type = error_type
 
 
 @dataclass
@@ -61,11 +79,44 @@ class DatasetStats:
 
 def _resolve_dataset_path(dataset: str) -> Path:
     path = (REPO_ROOT / dataset).resolve()
+    repo_root_resolved = REPO_ROOT.resolve()
+    if repo_root_resolved != path and repo_root_resolved not in path.parents:
+        raise ExperimentError("Dataset path must stay inside the project directory", error_type="dataset_path_unsafe")
     if not path.exists():
-        raise ExperimentError(f"Dataset not found: {dataset}")
-    if REPO_ROOT not in path.parents and path != REPO_ROOT:
-        raise ExperimentError("Dataset path must stay inside the project directory")
+        raise ExperimentError(f"Dataset not found: {dataset}", error_type="dataset_not_found")
     return path
+
+
+# Public alias - main.py needs this before run_experiment() to compute the
+# dataset checksum for the duplicate-submission check (Step 6), so it's
+# part of this module's public surface rather than a private helper.
+resolve_dataset_path = _resolve_dataset_path
+
+
+def compute_dataset_checksum(dataset_path: Path) -> str:
+    """SHA-256 of the exact bytes on disk (Step 6: 'store with every
+    experiment: dataset checksum'). Same function and same algorithm as
+    scripts/build_dataset_manifest.py, so a manifest's checksum and an
+    experiment's stored checksum are directly comparable."""
+    h = hashlib.sha256()
+    with open(dataset_path, "rb") as f:
+        for chunk in iter(lambda: f.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def compute_config_hash(req: ExperimentRequest, dataset_checksum: str) -> str:
+    """Deterministic fingerprint of "would this run produce the same
+    result as an existing one?" - the request body plus the dataset
+    checksum (not just the dataset *path*, since a path can point to
+    different bytes over time). Used for the duplicate-submission policy
+    in main.py. `model_dump(mode="json")` + `sort_keys=True` guarantees
+    the same logical request always hashes the same way regardless of
+    field ordering."""
+    payload = req.model_dump(mode="json")
+    payload["_dataset_checksum"] = dataset_checksum
+    canonical = json.dumps(payload, sort_keys=True)
+    return hashlib.sha256(canonical.encode()).hexdigest()
 
 
 def _resolve_prices(dataset_path: Path, limit_price: Optional[float], arrival_price: Optional[float]):
@@ -118,7 +169,7 @@ def _build_algorithm(req: ExperimentRequest):
         return algo
     if req.strategy == "POV":
         return POVAlgorithm(req.participation_rate, req.min_order_qty, req.max_order_qty)
-    raise ExperimentError(f"Unknown strategy '{req.strategy}'")
+    raise ExperimentError(f"Unknown strategy '{req.strategy}'", error_type="unknown_strategy")
 
 
 def _result_to_dict(result, limit_price: float) -> dict:
@@ -176,7 +227,8 @@ def run_experiment(req: ExperimentRequest) -> ExperimentRun:
         source = CsvMarketSource(str(dataset_path))
         if not source.ok():
             raise ExperimentError(
-                f"Could not load dataset '{req.dataset}' - check the path and required CSV columns"
+                f"Could not load dataset '{req.dataset}' - check the path and required CSV columns",
+                error_type="dataset_unloadable",
             )
 
     session = ExecutionSession()

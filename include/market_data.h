@@ -42,7 +42,9 @@ enum class EventType {
     BestBid,
     BestAsk,
     DepthUpdate,
-    Snapshot
+    Snapshot,
+    SessionMarker   // Start/end-of-session boundary (Step 3). Carries no
+                     // price/quantity; `symbol` + `timestamp_ms` only.
 };
 
 struct MarketEvent {
@@ -52,7 +54,9 @@ struct MarketEvent {
     double price = 0.0;
     uint64_t quantity = 0;
     OrderSide side = OrderSide::Buy;
-    int level = 0;
+    int level = 0;              // depth level index for DepthUpdate (0 = top of book)
+    std::string source;         // provenance: e.g. "csv:datasets/foo.csv" (Step 3, "source metadata")
+    uint64_t sequence = 0;      // stable ordering among events sharing one timestamp_ms
 };
 
 /**
