@@ -1,4 +1,4 @@
-# Historical Execution Research Platform
+# QuantExec
 
 A reproducible research/backtesting system that answers one question:
 
