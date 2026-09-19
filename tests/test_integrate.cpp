@@ -1,4 +1,5 @@
 #include "../include/types.h"
+#include "test_util.h"
 #include "../include/book.h"
 #include "../include/engine.h"
 #include "../include/market.h"
@@ -15,38 +16,6 @@
  * in realistic scenarios.
  */
 
-int test_count = 0;
-int pass_count = 0;
-
-template<typename T, typename U>
-void assert_eq(const std::string& name, T actual, U expected, double tolerance = 0) {
-    test_count++;
-    bool passed = false;
-    
-    if constexpr (std::is_floating_point_v<T>) {
-        // For floats, check within tolerance
-        passed = std::abs(actual - expected) <= std::abs(expected * tolerance);
-    } else {
-        passed = (actual == expected);
-    }
-    
-    if (passed) {
-        pass_count++;
-        std::cout << "✓ " << name << std::endl;
-    } else {
-        std::cout << "✗ " << name << std::endl;
-    }
-}
-
-void assert_true(const std::string& name, bool condition) {
-    test_count++;
-    if (condition) {
-        pass_count++;
-        std::cout << "✓ " << name << std::endl;
-    } else {
-        std::cout << "✗ " << name << std::endl;
-    }
-}
 
 /**
  * Integration Test 1: Complete order-to-trade workflow
@@ -57,7 +26,7 @@ void assert_true(const std::string& name, bool condition) {
  * 3. Verify trades are generated
  * 4. Verify order book is updated
  */
-void test_complete_workflow() {
+TEST(IntegrateTest, test_complete_workflow) {
     std::cout << "\nTest 1: Complete Order-to-Trade Workflow" << std::endl;
     std::cout << "─────────────────────────────────────────" << std::endl;
     
@@ -93,7 +62,7 @@ void test_complete_workflow() {
  * 3. Verify all fill
  * 4. Verify fills are recorded in trade history
  */
-void test_twap_integration() {
+TEST(IntegrateTest, test_twap_integration) {
     std::cout << "\nTest 2: TWAP Algorithm Integration" << std::endl;
     std::cout << "─────────────────────────────────────────" << std::endl;
     
@@ -132,7 +101,7 @@ void test_twap_integration() {
  * 3. Verify split is volume-weighted
  * 4. Execute and measure slippage
  */
-void test_vwap_integration() {
+TEST(IntegrateTest, test_vwap_integration) {
     std::cout << "\nTest 3: VWAP Algorithm Integration" << std::endl;
     std::cout << "─────────────────────────────────────────" << std::endl;
     
@@ -167,7 +136,7 @@ void test_vwap_integration() {
  * 4. Verify price evolved and trades were recorded
  * 5. Calculate slippage
  */
-void test_market_simulator_integration() {
+TEST(IntegrateTest, test_market_simulator_integration) {
     std::cout << "\nTest 4: Market Simulator Integration" << std::endl;
     std::cout << "─────────────────────────────────────────" << std::endl;
     
@@ -202,7 +171,7 @@ void test_market_simulator_integration() {
  * 4. Calculate final slippage and cost
  * 5. Verify complete end-to-end flow
  */
-void test_full_pipeline() {
+TEST(IntegrateTest, test_full_pipeline) {
     std::cout << "\nTest 5: Full Pipeline (Algorithm → Simulator → Analysis)" << std::endl;
     std::cout << "─────────────────────────────────────────" << std::endl;
     
@@ -255,26 +224,8 @@ void test_full_pipeline() {
     std::cout << "    Slippage: " << (slippage * 100) << "%" << std::endl;
 }
 
-int main() {
-    std::cout << "\n";
-    std::cout << "╔" << std::string(50, '=') << "╗" << std::endl;
-    std::cout << "║" << "  Integration Tests (Phase 6)" << "║" << std::endl;
-    std::cout << "╚" << std::string(50, '=') << "╝" << std::endl;
-    
-    test_complete_workflow();
-    test_twap_integration();
-    test_vwap_integration();
-    test_market_simulator_integration();
-    test_full_pipeline();
-    
-    std::cout << "\n";
-    std::cout << "Results: " << pass_count << "/" << test_count << " passed" << std::endl;
-    
-    if (pass_count == test_count) {
-        std::cout << "✓ All integration tests passed!" << std::endl;
-        return 0;
-    } else {
-        std::cout << "✗ Some tests failed" << std::endl;
-        return 1;
-    }
+int main(int argc, char** argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    int rc = RUN_ALL_TESTS();
+    return rc;
 }

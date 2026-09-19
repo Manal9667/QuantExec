@@ -1,4 +1,5 @@
 #include "../include/execution.h"
+#include "test_util.h"
 #include "../include/algorithms.h"
 #include "../include/market.h"
 #include "../include/impact.h"
@@ -13,61 +14,46 @@
  * framework as the other test_*.cpp files - no external test dependency.
  */
 
-int test_count = 0;
-int pass_count = 0;
-
-void assert_true(const std::string& name, bool condition) {
-    test_count++;
-    if (condition) {
-        pass_count++;
-        std::cout << "\xE2\x9C\x93 " << name << std::endl;
-    } else {
-        std::cout << "\xE2\x9C\x97 " << name << std::endl;
-    }
-}
 
 namespace {
-bool close_enough(double a, double b, double eps = 1e-9) {
-    return std::fabs(a - b) < eps;
-}
 }
 
 // ===========================================================================
 // POVAlgorithm::next_order_qty()
 // ===========================================================================
 
-void test_pov_proportional_sizing() {
+TEST(Phase2Test, test_pov_proportional_sizing) {
     POVAlgorithm pov(0.10); // 10% participation, no min/max
     // Market traded 5000 this event -> attempt ~500 (spec section 29 example)
     assert_true("10% of 5000 traded volume is 500", pov.next_order_qty(5000, 100000) == 500);
 }
 
-void test_pov_zero_market_volume_yields_zero_order() {
+TEST(Phase2Test, test_pov_zero_market_volume_yields_zero_order) {
     POVAlgorithm pov(0.10);
     assert_true("no market volume this event -> no order", pov.next_order_qty(0, 100000) == 0);
 }
 
-void test_pov_clamped_to_remaining_quantity() {
+TEST(Phase2Test, test_pov_clamped_to_remaining_quantity) {
     POVAlgorithm pov(0.5);
     // 50% of 1000 = 500, but only 300 shares remain on the parent order.
     assert_true("order size never exceeds remaining parent quantity",
                 pov.next_order_qty(1000, 300) == 300);
 }
 
-void test_pov_zero_remaining_yields_zero_order() {
+TEST(Phase2Test, test_pov_zero_remaining_yields_zero_order) {
     POVAlgorithm pov(0.5);
     assert_true("fully filled parent order never generates another child order",
                 pov.next_order_qty(1000, 0) == 0);
 }
 
-void test_pov_max_order_qty_cap() {
+TEST(Phase2Test, test_pov_max_order_qty_cap) {
     POVAlgorithm pov(0.5, /*min_order_qty=*/1, /*max_order_qty=*/100);
     // 50% of 1000 = 500, but capped to 100 by max_order_qty.
     assert_true("max_order_qty caps a single child order",
                 pov.next_order_qty(1000, 100000) == 100);
 }
 
-void test_pov_min_order_qty_snaps_to_zero() {
+TEST(Phase2Test, test_pov_min_order_qty_snaps_to_zero) {
     POVAlgorithm pov(0.01, /*min_order_qty=*/10);
     // 1% of 50 = 0.5 -> rounds to 1, which is below min_order_qty=10, so
     // the strategy skips this event rather than rounding up (which would
@@ -76,7 +62,7 @@ void test_pov_min_order_qty_snaps_to_zero() {
                 pov.next_order_qty(50, 100000) == 0);
 }
 
-void test_pov_generate_orders_throws() {
+TEST(Phase2Test, test_pov_generate_orders_throws) {
     POVAlgorithm pov(0.1);
     bool threw = false;
     try {
@@ -91,7 +77,7 @@ void test_pov_generate_orders_throws() {
 // ExecutionSession::run_pov()
 // ===========================================================================
 
-void test_run_pov_targets_participation_rate() {
+TEST(Phase2Test, test_run_pov_targets_participation_rate) {
     // Three ticks, each trading 1000 shares of market volume and quoting
     // deep liquidity (10,000 shares) so POV's sizing decision - not
     // available liquidity - is the binding constraint.
@@ -112,7 +98,7 @@ void test_run_pov_targets_participation_rate() {
                 close_enough(result.fill_rate, 300.0 / 10000.0));
 }
 
-void test_run_pov_stops_once_target_reached() {
+TEST(Phase2Test, test_run_pov_stops_once_target_reached) {
     VectorMarketSource source({
         {100.0, 0.0, 99.5, 100.0, 10000, 10000, 1000, 1000, 1, {{99.5, 10000}}, {{100.0, 10000}}},
         {100.0, 0.0, 99.5, 100.0, 10000, 10000, 2000, 1000, 2, {{99.5, 10000}}, {{100.0, 10000}}},
@@ -134,7 +120,7 @@ void test_run_pov_stops_once_target_reached() {
 // ExecutionSession::run_with_latency()
 // ===========================================================================
 
-void test_latency_zero_matches_run() {
+TEST(Phase2Test, test_latency_zero_matches_run) {
     VectorMarketSource source({
         {100.0, 0.0, 99.0, 100.0, 100, 100, 1000, 100, 1, {{99.0, 100}}, {{100.0, 100}, {100.5, 200}}},
         {100.0, 0.0, 99.0, 100.0, 100, 100, 1200, 200, 2, {{99.0, 100}}, {{100.0, 100}, {100.5, 200}}}
@@ -156,7 +142,7 @@ void test_latency_zero_matches_run() {
                 close_enough(delayed.average_execution_price, plain.average_execution_price));
 }
 
-void test_latency_delays_execution_to_a_later_event() {
+TEST(Phase2Test, test_latency_delays_execution_to_a_later_event) {
     // Two ticks 1ms apart. With 500ms latency, an order decided on tick 1
     // (t=1ms) cannot execute on tick 1 itself - only tick 2, if at all.
     VectorMarketSource source({
@@ -185,7 +171,7 @@ void test_latency_delays_execution_to_a_later_event() {
 // estimate_market_impact()
 // ===========================================================================
 
-void test_impact_zero_inputs_are_safe() {
+TEST(Phase2Test, test_impact_zero_inputs_are_safe) {
     MarketImpactConfig config;
     auto zero_volume = estimate_market_impact(1000, 0, 0.02, 100.0, config);
     assert_true("zero market volume returns an all-zero estimate (no div-by-zero)",
@@ -200,7 +186,7 @@ void test_impact_zero_inputs_are_safe() {
                 close_enough(zero_vol.impact_bps, 0.0));
 }
 
-void test_impact_scales_with_sqrt_participation() {
+TEST(Phase2Test, test_impact_scales_with_sqrt_participation) {
     MarketImpactConfig config;
     config.eta = 0.1;
     // participation = 10,000 / 100,000 = 0.10
@@ -215,7 +201,7 @@ void test_impact_scales_with_sqrt_participation() {
                 close_enough(high.impact_bps, low.impact_bps * 2.0));
 }
 
-void test_impact_scales_linearly_with_eta() {
+TEST(Phase2Test, test_impact_scales_linearly_with_eta) {
     MarketImpactConfig low_eta{0.05};
     MarketImpactConfig high_eta{0.10};
     auto low = estimate_market_impact(10000, 100000, 0.02, 100.0, low_eta);
@@ -224,7 +210,7 @@ void test_impact_scales_linearly_with_eta() {
                 close_enough(high.impact_bps, low.impact_bps * 2.0));
 }
 
-void test_impact_cost_matches_bps_and_notional() {
+TEST(Phase2Test, test_impact_cost_matches_bps_and_notional) {
     MarketImpactConfig config{0.1};
     auto est = estimate_market_impact(1000, 10000, 0.02, 50.0, config);
     const double expected_notional = 50.0 * 1000.0;
@@ -233,36 +219,8 @@ void test_impact_cost_matches_bps_and_notional() {
                 close_enough(est.impact_cost, expected_cost));
 }
 
-int main() {
-    std::cout << "Running Phase 2 tests (POV, latency model, market impact)...\n\n";
-
-    test_pov_proportional_sizing();
-    test_pov_zero_market_volume_yields_zero_order();
-    test_pov_clamped_to_remaining_quantity();
-    test_pov_zero_remaining_yields_zero_order();
-    test_pov_max_order_qty_cap();
-    test_pov_min_order_qty_snaps_to_zero();
-    test_pov_generate_orders_throws();
-
-    test_run_pov_targets_participation_rate();
-    test_run_pov_stops_once_target_reached();
-
-    test_latency_zero_matches_run();
-    test_latency_delays_execution_to_a_later_event();
-
-    test_impact_zero_inputs_are_safe();
-    test_impact_scales_with_sqrt_participation();
-    test_impact_scales_linearly_with_eta();
-    test_impact_cost_matches_bps_and_notional();
-
-    std::cout << "\n";
-    std::cout << "Results: " << pass_count << "/" << test_count << " passed" << std::endl;
-
-    if (pass_count == test_count) {
-        std::cout << "All tests passed!" << std::endl;
-        return 0;
-    } else {
-        std::cout << "Some tests failed" << std::endl;
-        return 1;
-    }
+int main(int argc, char** argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    int rc = RUN_ALL_TESTS();
+    return rc;
 }

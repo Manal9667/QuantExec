@@ -1,56 +1,14 @@
 #include "../include/market.h"
+#include "test_util.h"
 #include <iostream>
 #include <cassert>
 #include <cmath>
 
-int test_count = 0;
-int pass_count = 0;
-
-void assert_near(
-    const std::string& name,
-    double actual,
-    double expected,
-    double tolerance = 1e-9
-) {
-    test_count++;
-
-    if (std::abs(actual - expected) < tolerance) {
-        pass_count++;
-        std::cout << "✓ " << name << std::endl;
-    } else {
-        std::cout << "✗ " << name
-                  << " (got " << actual
-                  << ", expected " << expected << ")"
-                  << std::endl;
-    }
-}
-
-
-template<typename T, typename U>
-void assert_eq(const std::string& name, T actual, U expected) {
-    test_count++;
-    if (actual == expected) {
-        pass_count++;
-        std::cout << "✓ " << name << std::endl;
-    } else {
-        std::cout << "✗ " << name << " (got " << actual << ", expected " << expected << ")" << std::endl;
-    }
-}
-
-void assert_true(const std::string& name, bool condition) {
-    test_count++;
-    if (condition) {
-        pass_count++;
-        std::cout << "✓ " << name << std::endl;
-    } else {
-        std::cout << "✗ " << name << std::endl;
-    }
-}
 
 /**
  * Test 1: Simulator initializes correctly
  */
-void test_simulator_initializes() {
+TEST(SimulatorTest, test_simulator_initializes) {
     LiquidityModel liq(0.01, 1000, 0.0001);
     MarketSimulator sim(100.0, liq);
     
@@ -60,7 +18,7 @@ void test_simulator_initializes() {
 /**
  * Test 2: Price evolves over ticks
  */
-void test_price_evolves() {
+TEST(SimulatorTest, test_price_evolves) {
     LiquidityModel liq(0.01, 1000, 0.0001);
     MarketSimulator sim(100.0, liq);
     
@@ -80,7 +38,7 @@ void test_price_evolves() {
 /**
  * Test 3: Slippage calculation
  */
-void test_slippage_calculation() {
+TEST(SimulatorTest, test_slippage_calculation) {
     LiquidityModel liq(0.01, 1000, 0.0001);
     MarketSimulator sim(100.0, liq);
     
@@ -95,7 +53,7 @@ void test_slippage_calculation() {
 /**
  * Test 4: Liquidity model spreads
  */
-void test_liquidity_model_spreads() {
+TEST(SimulatorTest, test_liquidity_model_spreads) {
     LiquidityModel liq(0.02, 1000, 0.0001);  // 2 cent spread
     
     double mid = 100.0;
@@ -109,7 +67,7 @@ void test_liquidity_model_spreads() {
 /**
  * Test 5: Market snapshots captured
  */
-void test_snapshots_captured() {
+TEST(SimulatorTest, test_snapshots_captured) {
     LiquidityModel liq(0.01, 1000, 0.0001);
     MarketSimulator sim(100.0, liq);
     
@@ -124,7 +82,7 @@ void test_snapshots_captured() {
 /**
  * Test 6: Quotes are derived from the current mid, not hardcoded prices.
  */
-void test_quotes_follow_current_mid() {
+TEST(SimulatorTest, test_quotes_follow_current_mid) {
     LiquidityModel liq(0.02, 500, 0.0001);
     MarketSimulator sim(100.0, liq);
 
@@ -152,7 +110,7 @@ void test_quotes_follow_current_mid() {
 /**
  * Test 7: With no volatility, quotes stay locked to the initial mid and spread.
  */
-void test_zero_volatility_quotes_are_stable() {
+TEST(SimulatorTest, test_zero_volatility_quotes_are_stable) {
     LiquidityModel liq(0.01, 1000, 0.0001);
     MarketSimulator sim(100.0, liq);
 
@@ -170,7 +128,7 @@ void test_zero_volatility_quotes_are_stable() {
 /**
  * Test 8: The matching engine's top of book matches the current synthetic quotes.
  */
-void test_book_matches_current_quotes() {
+TEST(SimulatorTest, test_book_matches_current_quotes) {
     LiquidityModel liq(0.01, 750, 0.0001);
     MarketSimulator sim(100.0, liq);
 
@@ -194,7 +152,7 @@ void test_book_matches_current_quotes() {
 /**
  * Test 9: Strategy orders execute at the live ask, not a hardcoded $100.
  */
-void test_execution_uses_live_ask() {
+TEST(SimulatorTest, test_execution_uses_live_ask) {
     LiquidityModel liq(0.01, 1000, 0.0001);
     MarketSimulator sim(100.0, liq);
 
@@ -210,26 +168,8 @@ void test_execution_uses_live_ask() {
     assert_near("fill price is the live ask", trades[0].price, 100.005);
 }
 
-int main() {
-    std::cout << "Running MarketSimulator tests...\n\n";
-    
-    test_simulator_initializes();
-    test_price_evolves();
-    test_slippage_calculation();
-    test_liquidity_model_spreads();
-    test_snapshots_captured();
-    test_quotes_follow_current_mid();
-    test_zero_volatility_quotes_are_stable();
-    test_book_matches_current_quotes();
-    test_execution_uses_live_ask();
-    
-    std::cout << "\nResults: " << pass_count << "/" << test_count << " passed\n";
-    
-    if (pass_count == test_count) {
-        std::cout << "✓ All tests passed!" << std::endl;
-        return 0;
-    } else {
-        std::cout << "✗ Some tests failed" << std::endl;
-        return 1;
-    }
+int main(int argc, char** argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    int rc = RUN_ALL_TESTS();
+    return rc;
 }
