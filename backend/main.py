@@ -23,6 +23,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 import db
+from config import settings
 from experiment_service import (
     STRATEGIES,
     ExperimentError,
@@ -54,11 +55,13 @@ app = FastAPI(
     version="0.2.0",
 )
 
-# Permissive CORS for local dev (the React dashboard runs on a different
-# port). Tighten this before deploying anywhere that isn't localhost.
+# CORS allow-list. Defaults to "*" (permissive) for local dev - the React
+# dashboard runs on a different port - but is now configuration (spec section
+# 41): set QUANTEXEC_CORS_ORIGINS to a comma-separated allow-list to tighten
+# it before deploying anywhere that isn't localhost.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -301,3 +304,12 @@ def get_experiment_metrics(experiment_id: int):
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+if __name__ == "__main__":
+    # Convenience runner so `python backend/main.py` honours the configured
+    # host/port (spec section 41). For development with autoreload, prefer:
+    #   PYTHONPATH=build:backend uvicorn main:app --app-dir backend --reload
+    import uvicorn
+
+    uvicorn.run(app, host=settings.api_host, port=settings.api_port)
