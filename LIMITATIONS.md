@@ -122,9 +122,12 @@ a release/adoption review.
   baseline's absolute numbers are machine-specific (see
   `docs/BENCHMARKING.md` §7); the tolerance band is what makes the check
   portable across CI hardware.
-- **No frontend smoke test exists yet** for the primary dashboard
-  workflow — the frontend's correctness is currently checked only by
-  `npm run build` succeeding, not by an automated interaction test.
+- **Frontend test coverage is a smoke/interaction layer, not exhaustive.**
+  Vitest + Testing Library cover the primary dashboard workflow (the
+  New-Experiment form's payload shaping and API interaction) and the API
+  fetch wrapper (`frontend/src/**/*.test.{js,jsx}`, run in CI). The other
+  views (dashboard list, detail, comparison) are still only exercised by
+  `npm run build` succeeding, not by their own interaction tests.
 
 ## 7. Benchmarking
 
