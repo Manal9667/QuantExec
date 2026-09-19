@@ -13,7 +13,11 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # FIND PYTHON (required for bindings)
 # ============================================================================
 
-find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
+# Development.Module (not the full Development component) is all a pybind11
+# extension module needs - it does NOT require the Python embedding library
+# (libpythonX.Y.so), which is frequently absent on CI runners and would
+# otherwise make find_package fail there. See pybind11 docs "FindPython".
+find_package(Python3 REQUIRED COMPONENTS Interpreter Development.Module)
 
 # ============================================================================
 # FIND PYBIND11 (required for bindings)
