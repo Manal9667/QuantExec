@@ -8,8 +8,9 @@ error, not a fabricated result (spec section 40, Rule 8: "do not let the
 frontend invent values" - the corollary here is that the backend must
 never hand it invented values to begin with).
 
-Run with:
-    uvicorn backend.main:app --reload --port 8000
+Run with (from the repo root; the modules here use flat imports, so the
+backend directory and the built `executor` module must be on the path):
+    PYTHONPATH=build:backend uvicorn main:app --app-dir backend --reload --port 8000
 """
 
 from __future__ import annotations
@@ -17,7 +18,7 @@ from __future__ import annotations
 import datetime as dt
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -63,6 +64,19 @@ app.add_middleware(
 )
 
 
+# error_type -> HTTP status. Anything not listed is an ordinary 400. engine_error
+# is a server-side failure (not the client's fault), so it is a 500.
+_ERROR_STATUS = {"dataset_path_unsafe": 403, "engine_error": 500}
+
+
+def _mark_failed(conn, experiment_id: int, message: str) -> None:
+    """Move a row out of 'running' so it can't be stranded there forever
+    (a stranded row is invisible to the duplicate check and never retried)."""
+    conn.rollback()
+    db.update_experiment_status(conn, experiment_id, "failed", message)
+    conn.commit()
+
+
 @app.exception_handler(ExperimentError)
 def handle_experiment_error(request, exc: ExperimentError):
     """Step 6: 'return structured validation errors'. Every ExperimentError
@@ -71,7 +85,7 @@ def handle_experiment_error(request, exc: ExperimentError):
     parsing English prose. dataset_path_unsafe is the one case treated as
     a stricter client error (403) since it's a boundary violation attempt,
     not an ordinary mistake; everything else is 400."""
-    status_code = 403 if exc.error_type == "dataset_path_unsafe" else 400
+    status_code = _ERROR_STATUS.get(exc.error_type, 400)
     return JSONResponse(
         status_code=status_code,
         content=ErrorOut(error_type=exc.error_type, detail=str(exc)).model_dump(),
@@ -100,7 +114,7 @@ def create_experiment(req: ExperimentRequest, allow_duplicate: bool = False):
     like the engine binary itself).
     """
     conn = db.get_connection()
-    created_at = dt.datetime.utcnow().isoformat()
+    created_at = dt.datetime.now(dt.timezone.utc).isoformat()
 
     # Resolve + checksum the dataset up front. A bad dataset path is
     # exactly the kind of "invalid configuration" Step 6 wants surfaced
@@ -138,17 +152,19 @@ def create_experiment(req: ExperimentRequest, allow_duplicate: bool = False):
 
     try:
         run = run_experiment(req)
+        with db.transaction() as tx_conn:
+            db.insert_execution_run(tx_conn, experiment_id, run.result)
+            db.insert_fills(tx_conn, experiment_id, run.fills)
+            db.insert_strategy_result(tx_conn, experiment_id, run.costs, run.impact)
+            db.update_experiment_status(tx_conn, experiment_id, "completed")
     except ExperimentError as exc:
-        db.update_experiment_status(conn, experiment_id, "failed", str(exc))
-        conn.commit()
+        _mark_failed(conn, experiment_id, str(exc))
         log_event("experiment_failed", experiment_id=experiment_id, error_type=exc.error_type, error=str(exc))
         raise
-
-    with db.transaction() as conn:
-        db.insert_execution_run(conn, experiment_id, run.result)
-        db.insert_fills(conn, experiment_id, run.fills)
-        db.insert_strategy_result(conn, experiment_id, run.costs, run.impact)
-        db.update_experiment_status(conn, experiment_id, "completed")
+    except Exception as exc:  # noqa: BLE001 - engine/DB failure: never leave the row 'running'
+        _mark_failed(conn, experiment_id, f"{type(exc).__name__}: {exc}")
+        log_event("experiment_failed", experiment_id=experiment_id, error_type="engine_error", error=str(exc))
+        raise ExperimentError(f"Experiment failed unexpectedly: {exc}", error_type="engine_error") from exc
 
     return _load_experiment_detail(experiment_id)
 
@@ -185,7 +201,7 @@ def cancel_experiment(experiment_id: int):
 
 
 @app.get("/experiments", response_model=list[ExperimentSummaryOut])
-def list_experiments(limit: int = 100):
+def list_experiments(limit: int = Query(100, ge=1, le=1000)):
     conn = db.get_connection()
     rows = db.list_experiments(conn, limit=limit)
     return [

@@ -139,6 +139,48 @@ class ExperimentApiTests(unittest.TestCase):
         resp = self.client.delete(f"/experiments/{exp_id}")
         self.assertEqual(resp.status_code, 409)
 
+    def test_directory_as_dataset_returns_structured_error_not_500(self):
+        resp = self.client.post("/experiments", json=dict(self.base_request, dataset="datasets"))
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.json()["error_type"], "dataset_not_found")
+
+    def test_empty_dataset_returns_structured_error_and_row_is_not_left_running(self):
+        import experiment_service
+
+        empty = Path(tempfile.mkdtemp()) / "empty.csv"
+        empty.write_text("timestamp_ms,last,bid,ask,bid_size,ask_size,volume\n")
+        # resolve_dataset_path only accepts paths inside the repo, so point
+        # the service's REPO_ROOT at the temp dir for this one request.
+        original_root = experiment_service.REPO_ROOT
+        experiment_service.REPO_ROOT = empty.parent
+        try:
+            resp = self.client.post("/experiments", json=dict(self.base_request, dataset="empty.csv"))
+        finally:
+            experiment_service.REPO_ROOT = original_root
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.json()["error_type"], "dataset_unloadable")
+        statuses = {row["status"] for row in self.client.get("/experiments").json()}
+        self.assertNotIn("running", statuses)
+        self.assertNotIn("queued", statuses)
+
+    def test_unexpected_engine_failure_marks_experiment_failed(self):
+        import main as main_module
+
+        original = main_module.run_experiment
+        main_module.run_experiment = lambda req: (_ for _ in ()).throw(RuntimeError("boom"))
+        try:
+            resp = self.client.post("/experiments", json=self.base_request)
+        finally:
+            main_module.run_experiment = original
+        self.assertEqual(resp.status_code, 500)
+        self.assertEqual(resp.json()["error_type"], "engine_error")
+        rows = self.client.get("/experiments").json()
+        self.assertEqual([r["status"] for r in rows], ["failed"])
+
+    def test_list_limit_is_bounded(self):
+        self.assertEqual(self.client.get("/experiments?limit=0").status_code, 422)
+        self.assertEqual(self.client.get("/experiments?limit=100000").status_code, 422)
+
     def test_experiment_list_includes_dataset_checksum(self):
         self.client.post("/experiments", json=self.base_request)
         resp = self.client.get("/experiments")

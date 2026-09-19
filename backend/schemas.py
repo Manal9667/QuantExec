@@ -30,23 +30,23 @@ class ExperimentRequest(BaseModel):
     deep inside the engine with a confusing error.
     """
 
-    symbol: str
+    symbol: str = Field(..., min_length=1)
     dataset: str = Field(..., description="Path to a CSV dataset under datasets/, e.g. datasets/sample_synthetic.csv")
     side: Literal["BUY", "SELL"]
     quantity: int = Field(..., gt=0)
     strategy: Literal["TWAP", "VWAP", "POV"]
 
     # TWAP / VWAP
-    slices: Optional[int] = Field(default=None, gt=0)
+    slices: Optional[int] = Field(default=None, gt=0, le=100_000)
     volume_profile: Optional[list[float]] = None
 
     # POV
     participation_rate: Optional[float] = Field(default=None, gt=0, le=1)
-    min_order_qty: int = 1
-    max_order_qty: int = 0  # 0 = unbounded
+    min_order_qty: int = Field(default=1, ge=1)
+    max_order_qty: int = Field(default=0, ge=0)  # 0 = unbounded
 
     # Optional Phase 2 latency model (spec section 30). 0 = disabled.
-    latency_ms: int = 0
+    latency_ms: int = Field(default=0, ge=0)
 
     limit_price: Optional[float] = None
     arrival_price: Optional[float] = None

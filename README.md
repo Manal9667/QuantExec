@@ -6,6 +6,11 @@ A reproducible research/backtesting system that answers one question:
 > execution algorithms have executed the same parent order, and why did
 > their results differ?**
 
+This is a **research and backtesting system, not a production trading
+platform or a live broker.** Nothing here connects to a real exchange or
+executes real orders. See [`LIMITATIONS.md`](LIMITATIONS.md) for the full,
+current list of what this system does not yet do.
+
 ## What's actually in this repository
 
 Everything below is implemented, tested, and was re-verified (build +

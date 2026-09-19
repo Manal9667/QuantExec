@@ -161,3 +161,25 @@ Total cost:      15.9961  (1.60 bps)
 Step 1 is complete. This file is the frozen reference point; any regression
 in later steps should be checked against the numbers in §3.4 for the
 unmodified synthetic dataset and config.
+
+## Addendum - technical fixes pass
+
+The original run above listed 8 C++ suites, but `CMakeLists.txt` registers 10
+(`test_replay` and `test_stress` were added later and never appeared in this
+report). Re-checking all 10 found one failure, now fixed:
+
+| Change | Why |
+|---|---|
+| `tests/test_phase.cpp`: `seek(40)` outside a `[20, 30]` window now expects end-of-stream | The assertion contradicted the documented, inclusive replay window (`ReplayController` behaves the same way). It was the test that was stale, not the engine. |
+| `backend/dataset_utils.py`: cumulative `volume` is summed as increments | The market-impact estimate summed a running total when `bar_volume` was absent, badly overcounting volume. |
+| `backend/main.py`: any failure marks the experiment `failed`; unexpected errors return structured `engine_error` (500) | Previously a non-`ExperimentError` exception left the row stuck in `running`. |
+| `backend/experiment_service.py`: empty/malformed CSV and directory paths return structured 400s | These raised uncaught exceptions (HTTP 500). Duplicated dataset helpers now reuse `dataset_utils`. |
+| `backend/schemas.py`, `list_experiments`: bounds on `slices`, `latency_ms`, order sizes, `limit` | Unbounded values could exhaust memory or go negative. |
+| `docker-compose.yml`, `.dockerignore`, `.gitignore` added | Both Dockerfiles referenced `docker compose`, which did not exist; host `node_modules` would have been copied into Linux images. |
+
+Verified in a sandbox without CMake/pybind11/FastAPI: every `src/*.cpp` compiled
+with `-Wall -Wextra` (0 warnings), all 10 C++ test suites pass, `benchmark`,
+`benchmark_v2` and `demo` build, and `demo` output is identical across two runs.
+`python3 -m unittest discover -s backend/tests`: 37 pass, 14 API-level tests skip
+(they need FastAPI and the built `executor` module - run them per the commands
+above to confirm on your machine).

@@ -8,13 +8,36 @@ a release/adoption review.
 
 ## 1. Data
 
-- **No real historical market dataset is bundled.** The only dataset in
-  this repository (`datasets/sample_synthetic.csv`) is synthetic and
-  deterministic. This sandbox/environment's own tooling has no network
-  path to a market-data provider, and even where one exists, most real
-  tick/quote data requires a paid provider relationship this project
-  does not presume you have. See `dataset.md` §"Acquiring a real
-  historical dataset" for how to add one yourself.
+- **One real historical dataset is bundled (Phase 2), alongside the
+  original synthetic fixtures (kept, unmodified, for tests).**
+  `datasets/historical/AAPL_2024-01-03_0930-1030ET.csv` is real AAPL
+  quote data from Alpaca's IEX feed. It has real, disclosed gaps:
+  - **Quote-only, no trades.** The environment that built this dataset had
+    no `ALPACA_API_KEY`/`ALPACA_SECRET_KEY` and no network path to
+    Alpaca's API, so `historical-execution/download_trades.py` could not
+    be run. `last` is the quote midpoint, not a real trade print, and
+    `volume` is 0 for every row. A direct consequence: the **POV strategy
+    cannot produce any fills against this dataset** (it sizes child
+    orders from realized volume, which is always 0 here) — see
+    `historical-execution/PHASE2_STATUS.md` for the actual experiment
+    result showing this.
+  - **~15.5% of raw quotes were dropped as outliers** (anomalous
+    ask=$199.00 / bid<$100 prints, evidently bad ticks, not real NBBO) —
+    see `historical-execution/normalize.py` and `inspect_outliers.py`.
+  - **Resampled to one row per minute** (60 rows for the 60-minute
+    session), not full tick resolution, so that the number of dataset
+    rows matches the execution engine's one-child-order-per-market-event
+    design at a sensible (per-minute) granularity for a TWAP/VWAP/POV
+    comparison. This means intra-minute price/quote movement is not
+    replayed.
+  - **Single venue (IEX), not consolidated SIP.** Verified from the raw
+    data's exchange fields, not assumed.
+  - This does not generalize to "how TWAP/VWAP/POV perform on real
+    markets" — it is one symbol, one hour, one day, one venue, with no
+    real trade data. See `historical-execution/PHASE2_STATUS.md` for the
+    full accounting and `dataset.md` §"Acquiring a real historical
+    dataset" for how to add another one (e.g. with real trades, once
+    credentials/network access are available).
 - **The manifest tool (`scripts/build_dataset_manifest.py`) validates
   structure, not economic plausibility.** It will accept a file with
   correct types and ordering but implausible prices — it is not a

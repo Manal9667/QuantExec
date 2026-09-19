@@ -1,0 +1,11 @@
+# Host build artefacts must never leak into images: node_modules in particular
+# holds platform-specific native binaries (a Windows install breaks a Linux build).
+**/node_modules
+**/__pycache__
+**/*.pyc
+frontend/dist
+build
+Testing
+.git
+*.log
+historical-execution/data

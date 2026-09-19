@@ -161,6 +161,44 @@ class ComputeDatasetStatsTests(unittest.TestCase):
         stats = compute_dataset_stats(self.path)
         self.assertEqual(stats.total_bar_volume, 500)
 
+    def test_cumulative_volume_is_summed_as_increments_not_raw_values(self):
+        # `volume` is a running session total (dataset.md). Summing the raw
+        # values (100+250+400 = 750) would badly overcount; the traded volume
+        # is the final cumulative figure, 400.
+        _write_csv(
+            self.path,
+            [
+                {"bid": "100.0", "ask": "100.1", "volume": "100"},
+                {"bid": "100.0", "ask": "100.1", "volume": "250"},
+                {"bid": "100.0", "ask": "100.1", "volume": "400"},
+            ],
+            ["bid", "ask", "volume"],
+        )
+        self.assertEqual(compute_dataset_stats(self.path).total_bar_volume, 400)
+
+    def test_cumulative_volume_counter_reset_is_not_negative(self):
+        _write_csv(
+            self.path,
+            [
+                {"bid": "100.0", "ask": "100.1", "volume": "100"},
+                {"bid": "100.0", "ask": "100.1", "volume": "300"},
+                {"bid": "100.0", "ask": "100.1", "volume": "50"},  # session counter reset
+            ],
+            ["bid", "ask", "volume"],
+        )
+        self.assertEqual(compute_dataset_stats(self.path).total_bar_volume, 350)
+
+    def test_bar_volume_column_wins_over_cumulative_volume(self):
+        _write_csv(
+            self.path,
+            [
+                {"bid": "100.0", "ask": "100.1", "volume": "100", "bar_volume": "100"},
+                {"bid": "100.0", "ask": "100.1", "volume": "250", "bar_volume": "150"},
+            ],
+            ["bid", "ask", "volume", "bar_volume"],
+        )
+        self.assertEqual(compute_dataset_stats(self.path).total_bar_volume, 250)
+
     def test_constant_mid_price_has_zero_volatility(self):
         rows = [{"bid": "100.0", "ask": "100.0", "bar_volume": "1"} for _ in range(5)]
         _write_csv(self.path, rows, ["bid", "ask", "bar_volume"])
