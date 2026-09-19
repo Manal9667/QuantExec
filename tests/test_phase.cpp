@@ -90,6 +90,13 @@ void test_csv_replay_window_and_seek() {
     assert(source.next(state) && state.timestamp_ms == 30);
     assert(!source.next(state));
 
+    // The window is authoritative: seeking past its end yields end-of-stream
+    // rather than escaping the window (ReplayController behaves the same way).
+    source.seek(40);
+    assert(!source.next(state));
+
+    // Once the window is widened to include t=40, seek() lands on it.
+    source.set_time_window(20, 40);
     source.seek(40);
     assert(source.next(state) && state.timestamp_ms == 40);
     assert(!source.next(state));

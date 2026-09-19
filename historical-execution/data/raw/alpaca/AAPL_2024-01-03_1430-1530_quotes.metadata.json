@@ -1,0 +1,33 @@
+{
+  "_purpose": "Provenance record for the immutable raw Alpaca capture in this directory. This file describes ONLY the raw quote CSV; the normalized/derived dataset has its own manifest at datasets/historical/AAPL_2024-01-03_0930-1030ET.manifest.json.",
+
+  "source": "Alpaca Markets historical market data API, via the alpaca-py Python SDK (StockHistoricalDataClient.get_stock_quotes / StockQuotesRequest)",
+  "acquisition_script": "historical-execution/download_quotes.py",
+
+  "symbol": "AAPL",
+  "date": "2024-01-03",
+  "timezone": "UTC (raw timestamps); equivalent to America/New_York 09:30:00-10:30:00 EST (market was on standard time; session is NOT during US DST)",
+  "requested_time_window_utc": "2024-01-03T14:30:00Z to 2024-01-03T15:30:00Z",
+  "requested_time_window_et": "2024-01-03 09:30:00 to 10:30:00 America/New_York",
+  "actual_observed_time_window_utc": "2024-01-03T14:30:00.991129Z to 2024-01-03T15:29:59.834421Z",
+
+  "data_types_acquired": ["historical quotes (NBBO-style bid/ask)"],
+  "data_types_not_acquired": [
+    "historical trades - NOT acquired. No ALPACA_API_KEY/ALPACA_SECRET_KEY were available in the environment that performed this Phase 2 integration, and that environment's network egress allowlist does not include Alpaca's API host, so historical-execution/download_trades.py (added in this phase) could not be executed. It is written and ready to run wherever real credentials + network access exist.",
+    "OHLC bars - deliberately not used per the Phase 2 objective (quotes/trades only)",
+    "L2/L3 order book depth - Alpaca's historical data API does not provide venue depth beyond NBBO top-of-book"
+  ],
+
+  "actual_feed": "IEX (DataFeed.IEX in the request). Verified from the raw data itself, not assumed: every row's bid_exchange/ask_exchange field is 'V' (IEX's MIC) and every row's tape field is 'C' (Tape C / Nasdaq-listed). This is Alpaca's free-tier feed - a single-venue view, NOT the consolidated SIP NBBO across all exchanges. Do not describe this dataset as SIP data.",
+  "conditions_observed": "Every raw quote carries condition code 'R' (Regular) - no other quote condition codes appear in this capture.",
+
+  "retrieval_timestamp": "Not captured. download_quotes.py (as it existed when this raw file was produced, prior to this Phase 2 pass) did not log a retrieval timestamp. This is a real, disclosed gap - the file's filesystem mtime is NOT a reliable substitute (it reflects when the file was last copied/extracted in a given environment, not when it was downloaded from Alpaca). historical-execution/download_quotes.py should be extended to print/log a UTC retrieval timestamp on every future run; this has not been done retroactively for this already-acquired file.",
+  "request_id": "Not available. The alpaca-py SDK's StockHistoricalDataClient.get_stock_quotes() returns a parsed DataFrame (quotes.df) and does not expose the underlying HTTP response's request-id header through its public API used by download_quotes.py/test_alpaca.py. No request ID was captured.",
+
+  "row_count_raw": 325196,
+  "row_count_valid_quotes": 325070,
+  "file": "historical-execution/data/raw/alpaca/AAPL_2024-01-03_1430-1530_quotes.csv",
+  "columns": ["symbol", "timestamp", "bid_price", "bid_size", "bid_exchange", "ask_price", "ask_size", "ask_exchange", "conditions", "tape"],
+
+  "immutability": "This raw CSV is never modified after acquisition. All cleaning, filtering, resampling, and schema conversion happens downstream in historical-execution/normalize.py, whose output is a separate file under data/normalized/ and datasets/historical/, each with its own manifest."
+}

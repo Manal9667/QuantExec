@@ -1,0 +1,577 @@
+{
+  "phase": 3,
+  "description": "Controlled execution experiments with identical conditions, strategies vary only",
+  "dataset": "datasets/historical/AAPL_2024-01-03_0930-1030ET.csv",
+  "dataset_sha256": "43c06892602ccdaa389d4537e5cb0b6875213d1095388217b343377329d421ec",
+  "symbol": "AAPL",
+  "experiment_window": "2024-01-03 09:30-10:30 ET (60 one-minute bars)",
+  "pov_participation_rate": 0.2,
+  "num_experiments": 18,
+  "matrix": {
+    "sides": [
+      "Buy",
+      "Sell"
+    ],
+    "size_categories": [
+      "small",
+      "medium",
+      "large"
+    ],
+    "sizes": {
+      "small": 500,
+      "medium": 2500,
+      "large": 5000
+    },
+    "strategies": [
+      "TWAP",
+      "VWAP",
+      "POV"
+    ]
+  },
+  "cost_assumptions": {
+    "commission_bps": 0.5,
+    "exchange_fee_bps": 0.1
+  },
+  "results": [
+    {
+      "config": {
+        "dataset": "datasets/historical/AAPL_2024-01-03_0930-1030ET.csv",
+        "symbol": "AAPL",
+        "side": "BUY",
+        "quantity": 500,
+        "strategy": "TWAP",
+        "num_slices": 60,
+        "pov_participation": 0.2,
+        "commission_bps": 0.5,
+        "exchange_fee_bps": 0.1
+      },
+      "metrics": {
+        "requested_quantity": 500,
+        "filled_quantity": 500,
+        "unfilled_quantity": 0,
+        "fill_rate": 1.0,
+        "average_execution_price": 184.6466,
+        "arrival_price": 184.7,
+        "market_vwap": 0.0,
+        "slippage_bps": -2.89,
+        "implementation_shortfall": -26.68,
+        "total_cost_bps": 1.14,
+        "commission_bps": 0.01,
+        "exchange_fees_bps": 0.0,
+        "spread_cost_bps": 0.01,
+        "completion_time_ms": 1704295740000,
+        "participation_rate": 0.008055
+      }
+    },
+    {
+      "config": {
+        "dataset": "datasets/historical/AAPL_2024-01-03_0930-1030ET.csv",
+        "symbol": "AAPL",
+        "side": "BUY",
+        "quantity": 500,
+        "strategy": "VWAP",
+        "num_slices": 60,
+        "pov_participation": 0.2,
+        "commission_bps": 0.5,
+        "exchange_fee_bps": 0.1
+      },
+      "metrics": {
+        "requested_quantity": 500,
+        "filled_quantity": 500,
+        "unfilled_quantity": 0,
+        "fill_rate": 1.0,
+        "average_execution_price": 184.6466,
+        "arrival_price": 184.7,
+        "market_vwap": 0.0,
+        "slippage_bps": -2.89,
+        "implementation_shortfall": -26.68,
+        "total_cost_bps": 1.14,
+        "commission_bps": 0.01,
+        "exchange_fees_bps": 0.0,
+        "spread_cost_bps": 0.01,
+        "completion_time_ms": 1704295740000,
+        "participation_rate": 0.008055
+      }
+    },
+    {
+      "config": {
+        "dataset": "datasets/historical/AAPL_2024-01-03_0930-1030ET.csv",
+        "symbol": "AAPL",
+        "side": "BUY",
+        "quantity": 500,
+        "strategy": "POV",
+        "num_slices": 60,
+        "pov_participation": 0.2,
+        "commission_bps": 0.5,
+        "exchange_fee_bps": 0.1
+      },
+      "metrics": {
+        "requested_quantity": 500,
+        "filled_quantity": 0,
+        "unfilled_quantity": 500,
+        "fill_rate": 0.0,
+        "average_execution_price": 0.0,
+        "arrival_price": 184.7,
+        "market_vwap": 0.0,
+        "slippage_bps": 0.0,
+        "implementation_shortfall": 0.0,
+        "total_cost_bps": 0.0,
+        "commission_bps": 0.0,
+        "exchange_fees_bps": 0.0,
+        "spread_cost_bps": 0.0,
+        "completion_time_ms": 0,
+        "participation_rate": 0.0
+      }
+    },
+    {
+      "config": {
+        "dataset": "datasets/historical/AAPL_2024-01-03_0930-1030ET.csv",
+        "symbol": "AAPL",
+        "side": "BUY",
+        "quantity": 2500,
+        "strategy": "TWAP",
+        "num_slices": 60,
+        "pov_participation": 0.2,
+        "commission_bps": 0.5,
+        "exchange_fee_bps": 0.1
+      },
+      "metrics": {
+        "requested_quantity": 2500,
+        "filled_quantity": 2500,
+        "unfilled_quantity": 0,
+        "fill_rate": 1.0,
+        "average_execution_price": 184.6451,
+        "arrival_price": 184.7,
+        "market_vwap": 0.0,
+        "slippage_bps": -2.97,
+        "implementation_shortfall": -137.36,
+        "total_cost_bps": 1.14,
+        "commission_bps": 0.01,
+        "exchange_fees_bps": 0.0,
+        "spread_cost_bps": 0.01,
+        "completion_time_ms": 1704295740000,
+        "participation_rate": 0.040274
+      }
+    },
+    {
+      "config": {
+        "dataset": "datasets/historical/AAPL_2024-01-03_0930-1030ET.csv",
+        "symbol": "AAPL",
+        "side": "BUY",
+        "quantity": 2500,
+        "strategy": "VWAP",
+        "num_slices": 60,
+        "pov_participation": 0.2,
+        "commission_bps": 0.5,
+        "exchange_fee_bps": 0.1
+      },
+      "metrics": {
+        "requested_quantity": 2500,
+        "filled_quantity": 2500,
+        "unfilled_quantity": 0,
+        "fill_rate": 1.0,
+        "average_execution_price": 184.6451,
+        "arrival_price": 184.7,
+        "market_vwap": 0.0,
+        "slippage_bps": -2.97,
+        "implementation_shortfall": -137.36,
+        "total_cost_bps": 1.14,
+        "commission_bps": 0.01,
+        "exchange_fees_bps": 0.0,
+        "spread_cost_bps": 0.01,
+        "completion_time_ms": 1704295740000,
+        "participation_rate": 0.040274
+      }
+    },
+    {
+      "config": {
+        "dataset": "datasets/historical/AAPL_2024-01-03_0930-1030ET.csv",
+        "symbol": "AAPL",
+        "side": "BUY",
+        "quantity": 2500,
+        "strategy": "POV",
+        "num_slices": 60,
+        "pov_participation": 0.2,
+        "commission_bps": 0.5,
+        "exchange_fee_bps": 0.1
+      },
+      "metrics": {
+        "requested_quantity": 2500,
+        "filled_quantity": 0,
+        "unfilled_quantity": 2500,
+        "fill_rate": 0.0,
+        "average_execution_price": 0.0,
+        "arrival_price": 184.7,
+        "market_vwap": 0.0,
+        "slippage_bps": 0.0,
+        "implementation_shortfall": 0.0,
+        "total_cost_bps": 0.0,
+        "commission_bps": 0.0,
+        "exchange_fees_bps": 0.0,
+        "spread_cost_bps": 0.0,
+        "completion_time_ms": 0,
+        "participation_rate": 0.0
+      }
+    },
+    {
+      "config": {
+        "dataset": "datasets/historical/AAPL_2024-01-03_0930-1030ET.csv",
+        "symbol": "AAPL",
+        "side": "BUY",
+        "quantity": 5000,
+        "strategy": "TWAP",
+        "num_slices": 60,
+        "pov_participation": 0.2,
+        "commission_bps": 0.5,
+        "exchange_fee_bps": 0.1
+      },
+      "metrics": {
+        "requested_quantity": 5000,
+        "filled_quantity": 4997,
+        "unfilled_quantity": 3,
+        "fill_rate": 0.9994,
+        "average_execution_price": 184.6442,
+        "arrival_price": 184.7,
+        "market_vwap": 0.0,
+        "slippage_bps": -3.02,
+        "implementation_shortfall": -278.71,
+        "total_cost_bps": 1.14,
+        "commission_bps": 0.01,
+        "exchange_fees_bps": 0.0,
+        "spread_cost_bps": 0.01,
+        "completion_time_ms": 1704295740000,
+        "participation_rate": 0.080499
+      }
+    },
+    {
+      "config": {
+        "dataset": "datasets/historical/AAPL_2024-01-03_0930-1030ET.csv",
+        "symbol": "AAPL",
+        "side": "BUY",
+        "quantity": 5000,
+        "strategy": "VWAP",
+        "num_slices": 60,
+        "pov_participation": 0.2,
+        "commission_bps": 0.5,
+        "exchange_fee_bps": 0.1
+      },
+      "metrics": {
+        "requested_quantity": 5000,
+        "filled_quantity": 4997,
+        "unfilled_quantity": 3,
+        "fill_rate": 0.9994,
+        "average_execution_price": 184.6442,
+        "arrival_price": 184.7,
+        "market_vwap": 0.0,
+        "slippage_bps": -3.02,
+        "implementation_shortfall": -278.71,
+        "total_cost_bps": 1.14,
+        "commission_bps": 0.01,
+        "exchange_fees_bps": 0.0,
+        "spread_cost_bps": 0.01,
+        "completion_time_ms": 1704295740000,
+        "participation_rate": 0.080499
+      }
+    },
+    {
+      "config": {
+        "dataset": "datasets/historical/AAPL_2024-01-03_0930-1030ET.csv",
+        "symbol": "AAPL",
+        "side": "BUY",
+        "quantity": 5000,
+        "strategy": "POV",
+        "num_slices": 60,
+        "pov_participation": 0.2,
+        "commission_bps": 0.5,
+        "exchange_fee_bps": 0.1
+      },
+      "metrics": {
+        "requested_quantity": 5000,
+        "filled_quantity": 0,
+        "unfilled_quantity": 5000,
+        "fill_rate": 0.0,
+        "average_execution_price": 0.0,
+        "arrival_price": 184.7,
+        "market_vwap": 0.0,
+        "slippage_bps": 0.0,
+        "implementation_shortfall": 0.0,
+        "total_cost_bps": 0.0,
+        "commission_bps": 0.0,
+        "exchange_fees_bps": 0.0,
+        "spread_cost_bps": 0.0,
+        "completion_time_ms": 0,
+        "participation_rate": 0.0
+      }
+    },
+    {
+      "config": {
+        "dataset": "datasets/historical/AAPL_2024-01-03_0930-1030ET.csv",
+        "symbol": "AAPL",
+        "side": "SELL",
+        "quantity": 500,
+        "strategy": "TWAP",
+        "num_slices": 60,
+        "pov_participation": 0.2,
+        "commission_bps": 0.5,
+        "exchange_fee_bps": 0.1
+      },
+      "metrics": {
+        "requested_quantity": 500,
+        "filled_quantity": 500,
+        "unfilled_quantity": 0,
+        "fill_rate": 1.0,
+        "average_execution_price": 184.3212,
+        "arrival_price": 184.7,
+        "market_vwap": 0.0,
+        "slippage_bps": 20.51,
+        "implementation_shortfall": 189.4,
+        "total_cost_bps": 1.14,
+        "commission_bps": 0.01,
+        "exchange_fees_bps": 0.0,
+        "spread_cost_bps": 0.01,
+        "completion_time_ms": 1704295740000,
+        "participation_rate": 0.008055
+      }
+    },
+    {
+      "config": {
+        "dataset": "datasets/historical/AAPL_2024-01-03_0930-1030ET.csv",
+        "symbol": "AAPL",
+        "side": "SELL",
+        "quantity": 500,
+        "strategy": "VWAP",
+        "num_slices": 60,
+        "pov_participation": 0.2,
+        "commission_bps": 0.5,
+        "exchange_fee_bps": 0.1
+      },
+      "metrics": {
+        "requested_quantity": 500,
+        "filled_quantity": 500,
+        "unfilled_quantity": 0,
+        "fill_rate": 1.0,
+        "average_execution_price": 184.3212,
+        "arrival_price": 184.7,
+        "market_vwap": 0.0,
+        "slippage_bps": 20.51,
+        "implementation_shortfall": 189.4,
+        "total_cost_bps": 1.14,
+        "commission_bps": 0.01,
+        "exchange_fees_bps": 0.0,
+        "spread_cost_bps": 0.01,
+        "completion_time_ms": 1704295740000,
+        "participation_rate": 0.008055
+      }
+    },
+    {
+      "config": {
+        "dataset": "datasets/historical/AAPL_2024-01-03_0930-1030ET.csv",
+        "symbol": "AAPL",
+        "side": "SELL",
+        "quantity": 500,
+        "strategy": "POV",
+        "num_slices": 60,
+        "pov_participation": 0.2,
+        "commission_bps": 0.5,
+        "exchange_fee_bps": 0.1
+      },
+      "metrics": {
+        "requested_quantity": 500,
+        "filled_quantity": 0,
+        "unfilled_quantity": 500,
+        "fill_rate": 0.0,
+        "average_execution_price": 0.0,
+        "arrival_price": 184.7,
+        "market_vwap": 0.0,
+        "slippage_bps": 0.0,
+        "implementation_shortfall": 0.0,
+        "total_cost_bps": 0.0,
+        "commission_bps": 0.0,
+        "exchange_fees_bps": 0.0,
+        "spread_cost_bps": 0.0,
+        "completion_time_ms": 0,
+        "participation_rate": 0.0
+      }
+    },
+    {
+      "config": {
+        "dataset": "datasets/historical/AAPL_2024-01-03_0930-1030ET.csv",
+        "symbol": "AAPL",
+        "side": "SELL",
+        "quantity": 2500,
+        "strategy": "TWAP",
+        "num_slices": 60,
+        "pov_participation": 0.2,
+        "commission_bps": 0.5,
+        "exchange_fee_bps": 0.1
+      },
+      "metrics": {
+        "requested_quantity": 2500,
+        "filled_quantity": 2500,
+        "unfilled_quantity": 0,
+        "fill_rate": 1.0,
+        "average_execution_price": 184.312,
+        "arrival_price": 184.7,
+        "market_vwap": 0.0,
+        "slippage_bps": 21.01,
+        "implementation_shortfall": 970.05,
+        "total_cost_bps": 1.14,
+        "commission_bps": 0.01,
+        "exchange_fees_bps": 0.0,
+        "spread_cost_bps": 0.01,
+        "completion_time_ms": 1704295740000,
+        "participation_rate": 0.040274
+      }
+    },
+    {
+      "config": {
+        "dataset": "datasets/historical/AAPL_2024-01-03_0930-1030ET.csv",
+        "symbol": "AAPL",
+        "side": "SELL",
+        "quantity": 2500,
+        "strategy": "VWAP",
+        "num_slices": 60,
+        "pov_participation": 0.2,
+        "commission_bps": 0.5,
+        "exchange_fee_bps": 0.1
+      },
+      "metrics": {
+        "requested_quantity": 2500,
+        "filled_quantity": 2500,
+        "unfilled_quantity": 0,
+        "fill_rate": 1.0,
+        "average_execution_price": 184.312,
+        "arrival_price": 184.7,
+        "market_vwap": 0.0,
+        "slippage_bps": 21.01,
+        "implementation_shortfall": 970.05,
+        "total_cost_bps": 1.14,
+        "commission_bps": 0.01,
+        "exchange_fees_bps": 0.0,
+        "spread_cost_bps": 0.01,
+        "completion_time_ms": 1704295740000,
+        "participation_rate": 0.040274
+      }
+    },
+    {
+      "config": {
+        "dataset": "datasets/historical/AAPL_2024-01-03_0930-1030ET.csv",
+        "symbol": "AAPL",
+        "side": "SELL",
+        "quantity": 2500,
+        "strategy": "POV",
+        "num_slices": 60,
+        "pov_participation": 0.2,
+        "commission_bps": 0.5,
+        "exchange_fee_bps": 0.1
+      },
+      "metrics": {
+        "requested_quantity": 2500,
+        "filled_quantity": 0,
+        "unfilled_quantity": 2500,
+        "fill_rate": 0.0,
+        "average_execution_price": 0.0,
+        "arrival_price": 184.7,
+        "market_vwap": 0.0,
+        "slippage_bps": 0.0,
+        "implementation_shortfall": 0.0,
+        "total_cost_bps": 0.0,
+        "commission_bps": 0.0,
+        "exchange_fees_bps": 0.0,
+        "spread_cost_bps": 0.0,
+        "completion_time_ms": 0,
+        "participation_rate": 0.0
+      }
+    },
+    {
+      "config": {
+        "dataset": "datasets/historical/AAPL_2024-01-03_0930-1030ET.csv",
+        "symbol": "AAPL",
+        "side": "SELL",
+        "quantity": 5000,
+        "strategy": "TWAP",
+        "num_slices": 60,
+        "pov_participation": 0.2,
+        "commission_bps": 0.5,
+        "exchange_fee_bps": 0.1
+      },
+      "metrics": {
+        "requested_quantity": 5000,
+        "filled_quantity": 5000,
+        "unfilled_quantity": 0,
+        "fill_rate": 1.0,
+        "average_execution_price": 184.3074,
+        "arrival_price": 184.7,
+        "market_vwap": 0.0,
+        "slippage_bps": 21.26,
+        "implementation_shortfall": 1963.15,
+        "total_cost_bps": 1.14,
+        "commission_bps": 0.01,
+        "exchange_fees_bps": 0.0,
+        "spread_cost_bps": 0.01,
+        "completion_time_ms": 1704295740000,
+        "participation_rate": 0.080548
+      }
+    },
+    {
+      "config": {
+        "dataset": "datasets/historical/AAPL_2024-01-03_0930-1030ET.csv",
+        "symbol": "AAPL",
+        "side": "SELL",
+        "quantity": 5000,
+        "strategy": "VWAP",
+        "num_slices": 60,
+        "pov_participation": 0.2,
+        "commission_bps": 0.5,
+        "exchange_fee_bps": 0.1
+      },
+      "metrics": {
+        "requested_quantity": 5000,
+        "filled_quantity": 5000,
+        "unfilled_quantity": 0,
+        "fill_rate": 1.0,
+        "average_execution_price": 184.3074,
+        "arrival_price": 184.7,
+        "market_vwap": 0.0,
+        "slippage_bps": 21.26,
+        "implementation_shortfall": 1963.15,
+        "total_cost_bps": 1.14,
+        "commission_bps": 0.01,
+        "exchange_fees_bps": 0.0,
+        "spread_cost_bps": 0.01,
+        "completion_time_ms": 1704295740000,
+        "participation_rate": 0.080548
+      }
+    },
+    {
+      "config": {
+        "dataset": "datasets/historical/AAPL_2024-01-03_0930-1030ET.csv",
+        "symbol": "AAPL",
+        "side": "SELL",
+        "quantity": 5000,
+        "strategy": "POV",
+        "num_slices": 60,
+        "pov_participation": 0.2,
+        "commission_bps": 0.5,
+        "exchange_fee_bps": 0.1
+      },
+      "metrics": {
+        "requested_quantity": 5000,
+        "filled_quantity": 0,
+        "unfilled_quantity": 5000,
+        "fill_rate": 0.0,
+        "average_execution_price": 0.0,
+        "arrival_price": 184.7,
+        "market_vwap": 0.0,
+        "slippage_bps": 0.0,
+        "implementation_shortfall": 0.0,
+        "total_cost_bps": 0.0,
+        "commission_bps": 0.0,
+        "exchange_fees_bps": 0.0,
+        "spread_cost_bps": 0.0,
+        "completion_time_ms": 0,
+        "participation_rate": 0.0
+      }
+    }
+  ]
+}

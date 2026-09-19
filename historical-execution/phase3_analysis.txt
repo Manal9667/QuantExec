@@ -1,0 +1,128 @@
+================================================================================
+PHASE 3: EXECUTION EXPERIMENTS + ANALYTICS
+================================================================================
+
+Dataset:     datasets/historical/AAPL_2024-01-03_0930-1030ET.csv
+Symbol:      AAPL
+Window:      2024-01-03 09:30-10:30 ET (60 one-minute bars)
+Experiments: 18
+
+EXPERIMENT CONFIGURATION
+--------------------------------------------------------------------------------
+Sides:              Buy, Sell
+Order sizes:        500 (small), 2500 (medium), 5000 (large)
+Strategies:         TWAP, VWAP, POV
+Dataset slices:     60 (one per one-minute bar)
+Resampling:         One-minute bars
+Latency:            Zero (simulated)
+Commission:         0.5 bps
+Exchange fee:       0.1 bps
+POV participation:  20.0%
+
+FAIRNESS STATEMENT
+--------------------------------------------------------------------------------
+All experiments use identical conditions EXCEPT strategy:
+  ✓ Same dataset file (same sha256)
+  ✓ Same time window (2024-01-03, 09:30-10:30 ET)
+  ✓ Same limit/arrival prices (derived from first row)
+  ✓ Same number of slices (60 = one per minute)
+  ✓ Same transaction cost assumptions
+  ✓ Same latency assumptions (zero)
+  ✓ Strategy is the ONLY variable
+
+RESULTS SUMMARY
+--------------------------------------------------------------------------------
+
+BUY 500 shares (small):
+  ----------------------------------------------------------------------------
+  Strategy   Filled       Fill%      Avg Price    Slippage     Cost (bps)  
+  ----------------------------------------------------------------------------
+  POV        0/500        0.0%       0.0000       0.00 bps     0.00        
+  TWAP       500/500      100.0%     184.6466     -2.89 bps    1.14        
+  VWAP       500/500      100.0%     184.6466     -2.89 bps    1.14        
+
+BUY 2500 shares (medium):
+  ----------------------------------------------------------------------------
+  Strategy   Filled       Fill%      Avg Price    Slippage     Cost (bps)  
+  ----------------------------------------------------------------------------
+  POV        0/2500       0.0%       0.0000       0.00 bps     0.00        
+  TWAP       2500/2500    100.0%     184.6451     -2.97 bps    1.14        
+  VWAP       2500/2500    100.0%     184.6451     -2.97 bps    1.14        
+
+BUY 5000 shares (large):
+  ----------------------------------------------------------------------------
+  Strategy   Filled       Fill%      Avg Price    Slippage     Cost (bps)  
+  ----------------------------------------------------------------------------
+  POV        0/5000       0.0%       0.0000       0.00 bps     0.00        
+  TWAP       4997/5000    99.9%      184.6442     -3.02 bps    1.14        
+  VWAP       4997/5000    99.9%      184.6442     -3.02 bps    1.14        
+
+SELL 500 shares (small):
+  ----------------------------------------------------------------------------
+  Strategy   Filled       Fill%      Avg Price    Slippage     Cost (bps)  
+  ----------------------------------------------------------------------------
+  POV        0/500        0.0%       0.0000       0.00 bps     0.00        
+  TWAP       500/500      100.0%     184.3212     20.51 bps    1.14        
+  VWAP       500/500      100.0%     184.3212     20.51 bps    1.14        
+
+SELL 2500 shares (medium):
+  ----------------------------------------------------------------------------
+  Strategy   Filled       Fill%      Avg Price    Slippage     Cost (bps)  
+  ----------------------------------------------------------------------------
+  POV        0/2500       0.0%       0.0000       0.00 bps     0.00        
+  TWAP       2500/2500    100.0%     184.3120     21.01 bps    1.14        
+  VWAP       2500/2500    100.0%     184.3120     21.01 bps    1.14        
+
+SELL 5000 shares (large):
+  ----------------------------------------------------------------------------
+  Strategy   Filled       Fill%      Avg Price    Slippage     Cost (bps)  
+  ----------------------------------------------------------------------------
+  POV        0/5000       0.0%       0.0000       0.00 bps     0.00        
+  TWAP       5000/5000    100.0%     184.3074     21.26 bps    1.14        
+  VWAP       5000/5000    100.0%     184.3074     21.26 bps    1.14        
+
+KEY OBSERVATIONS
+--------------------------------------------------------------------------------
+Fill rates:
+  TWAP: 100.0% average
+  VWAP: 100.0% average
+  POV:  0.0% average
+
+Average slippage (bps):
+  TWAP: 8.98 bps
+  VWAP: 8.98 bps
+  POV:  0.00 bps
+
+Average total cost (bps):
+  TWAP: 1.14 bps
+  VWAP: 1.14 bps
+  POV:  0.00 bps
+
+INTERPRETATION CAVEATS
+--------------------------------------------------------------------------------
+Strategy performance varies with:
+  • Market conditions (price volatility, trending)
+  • Order size (small orders have higher fill rates)
+  • Execution window (longer windows allow more passive fills)
+  • Available liquidity (changes by time and symbol)
+  • Assumptions (fees, latency, tick sizes, market impact)
+
+These results demonstrate behavior under ONE set of historical
+conditions. Do not generalize to other markets, times, or assumptions.
+
+DATA PROVENANCE
+--------------------------------------------------------------------------------
+Symbol:             AAPL
+Date:               2024-01-03
+Time window:        09:30-10:30 ET (60 one-minute bars)
+Source:             Alpaca IEX feed
+Data type:          Quote replay (no trades, no depth)
+Raw quote count:    325,196 (processed to 60 after normalization)
+Normalization:
+  - Bad prints removed (crossed bid/ask, outliers 2%+ from median)
+  - Resampled to one-minute bars
+  - Quote sizes converted from round lots to shares
+
+================================================================================
+END OF ANALYSIS
+================================================================================

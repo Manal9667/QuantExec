@@ -1,13 +1,9 @@
-# Phase 2 (spec section 37): containerize only what's useful - the backend
-# (which needs a real C++ toolchain to build the engine) and the frontend
-# dashboard. Datasets and the SQLite file are bind-mounted so results
-# persist across container restarts and stay easy to inspect from the host.
+# One-command local stack:  docker compose up --build
+#   backend  -> http://localhost:8000  (API docs at /docs)
+#   frontend -> http://localhost:5173
 #
-# Usage:
-#   docker compose up --build
-#   Backend:  http://localhost:8000  (docs at /docs)
-#   Frontend: http://localhost:5173
-
+# Both Dockerfiles expect the repo root as the build context (they COPY
+# paths like `backend/` and `frontend/`), hence `context: .`.
 services:
   backend:
     build:
@@ -16,16 +12,20 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./datasets:/app/datasets:ro
+      # Persist the SQLite experiment database across container restarts.
       - ./experiments:/app/experiments
-    environment:
-      - PYTHONUNBUFFERED=1
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
 
   frontend:
     build:
       context: .
-      dockerfile: frontend/Dockerfile
+      dockerfile: frontend/dockerfile
     ports:
       - "5173:5173"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy

@@ -18,12 +18,9 @@ coupling a library import to a Phase 1 script's CLI concerns.
 
 from __future__ import annotations
 
-import csv
 import hashlib
 import json
-import math
-import statistics
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
@@ -40,6 +37,7 @@ from executor import (
     estimate_market_impact,
 )
 
+from dataset_utils import DatasetError, compute_dataset_stats, resolve_prices
 from logging_utils import log_event, timed_stage
 from schemas import ExperimentRequest
 
@@ -58,8 +56,11 @@ class ExperimentError(ValueError):
         dataset_not_found   - the dataset path doesn't exist under the repo
         dataset_path_unsafe - the path tried to escape the repo root
         dataset_unloadable  - the file exists but the engine couldn't load it
-                               (see scripts/build_dataset_manifest.py for why)
+                               (see scripts/build_dataset_manifest.py for why),
+                               or it is empty / missing required columns
         unknown_strategy    - strategy isn't one of TWAP/VWAP/POV
+        engine_error        - unexpected failure inside the engine or the
+                               persistence layer (a server-side problem, 500)
     """
 
     def __init__(self, message: str, error_type: str = "invalid_request"):
@@ -67,22 +68,14 @@ class ExperimentError(ValueError):
         self.error_type = error_type
 
 
-@dataclass
-class DatasetStats:
-    """Aggregate stats read once from the raw CSV, used only for the
-    optional market-impact estimate (spec section 31) - the core
-    execution path never needs these."""
-
-    total_bar_volume: int = 0
-    mid_price_volatility: float = 0.0  # stdev of tick-to-tick mid-price returns
-
-
 def _resolve_dataset_path(dataset: str) -> Path:
     path = (REPO_ROOT / dataset).resolve()
     repo_root_resolved = REPO_ROOT.resolve()
     if repo_root_resolved != path and repo_root_resolved not in path.parents:
         raise ExperimentError("Dataset path must stay inside the project directory", error_type="dataset_path_unsafe")
-    if not path.exists():
+    # is_file(), not just exists(): a directory would otherwise pass this
+    # check and blow up later as an unhandled IsADirectoryError (HTTP 500).
+    if not path.is_file():
         raise ExperimentError(f"Dataset not found: {dataset}", error_type="dataset_not_found")
     return path
 
@@ -117,46 +110,6 @@ def compute_config_hash(req: ExperimentRequest, dataset_checksum: str) -> str:
     payload["_dataset_checksum"] = dataset_checksum
     canonical = json.dumps(payload, sort_keys=True)
     return hashlib.sha256(canonical.encode()).hexdigest()
-
-
-def _resolve_prices(dataset_path: Path, limit_price: Optional[float], arrival_price: Optional[float]):
-    """Same default rule as python/run_experiment.py: derive from the
-    dataset's first row when the request leaves them unset."""
-    if limit_price is not None and arrival_price is not None:
-        return limit_price, arrival_price
-
-    with open(dataset_path) as f:
-        reader = csv.DictReader(f)
-        first = next(reader)
-    mid = (float(first["bid"]) + float(first["ask"])) / 2.0
-    if limit_price is None:
-        limit_price = float(first["ask"]) * 1.02
-    if arrival_price is None:
-        arrival_price = mid
-    return limit_price, arrival_price
-
-
-def _compute_dataset_stats(dataset_path: Path) -> DatasetStats:
-    """Single pass over the CSV for total traded volume and mid-price
-    volatility. Only computed when an impact estimate is requested."""
-    volumes: list[int] = []
-    mids: list[float] = []
-    with open(dataset_path) as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            bar_volume = row.get("bar_volume") or row.get("volume") or "0"
-            volumes.append(int(float(bar_volume)))
-            bid, ask = float(row["bid"]), float(row["ask"])
-            if bid > 0 and ask > 0:
-                mids.append((bid + ask) / 2.0)
-
-    returns = [
-        (mids[i] - mids[i - 1]) / mids[i - 1]
-        for i in range(1, len(mids))
-        if mids[i - 1] > 0
-    ]
-    volatility = statistics.pstdev(returns) if len(returns) > 1 else 0.0
-    return DatasetStats(total_bar_volume=sum(volumes), mid_price_volatility=volatility)
 
 
 def _build_algorithm(req: ExperimentRequest):
@@ -223,7 +176,10 @@ def run_experiment(req: ExperimentRequest) -> ExperimentRun:
     side = OrderSide.Buy if req.side == "BUY" else OrderSide.Sell
 
     with timed_stage("data_loading", dataset=req.dataset):
-        limit_price, arrival_price = _resolve_prices(dataset_path, req.limit_price, req.arrival_price)
+        try:
+            limit_price, arrival_price = resolve_prices(dataset_path, req.limit_price, req.arrival_price)
+        except DatasetError as exc:
+            raise ExperimentError(str(exc), error_type="dataset_unloadable") from exc
         source = CsvMarketSource(str(dataset_path))
         if not source.ok():
             raise ExperimentError(
@@ -269,7 +225,10 @@ def run_experiment(req: ExperimentRequest) -> ExperimentRun:
 
         impact_out = None
         if req.impact.enabled:
-            stats = _compute_dataset_stats(dataset_path)
+            try:
+                stats = compute_dataset_stats(dataset_path)
+            except DatasetError as exc:
+                raise ExperimentError(str(exc), error_type="dataset_unloadable") from exc
             impact_cfg = MarketImpactConfig(req.impact.eta)
             impact = estimate_market_impact(
                 result.filled_quantity,

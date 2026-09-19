@@ -158,11 +158,24 @@ def compute_dataset_stats(dataset_path: Path) -> DatasetStats:
 
     with open(dataset_path, newline="") as f:
         reader = csv.DictReader(f)
+        # `bar_volume` is per-row (incremental) volume and can be summed as-is.
+        # `volume` is CUMULATIVE session volume (see dataset.md), so when only
+        # that column exists we must sum its per-row increments, not the raw
+        # values - summing a running total would count early volume many times
+        # over and understate participation in the impact estimate.
+        has_bar_volume = "bar_volume" in (reader.fieldnames or [])
+        prev_cumulative = 0
         for row in reader:
             row_count += 1
-            bar_volume = row.get("bar_volume") or row.get("volume") or "0"
             try:
-                volumes.append(int(float(bar_volume)))
+                if has_bar_volume:
+                    volumes.append(int(float(row.get("bar_volume") or "0")))
+                else:
+                    cumulative = int(float(row.get("volume") or "0"))
+                    # A drop means the session counter reset; treat the new
+                    # value as fresh volume rather than a negative increment.
+                    volumes.append(cumulative - prev_cumulative if cumulative >= prev_cumulative else cumulative)
+                    prev_cumulative = cumulative
             except ValueError:
                 continue  # malformed row: skip rather than crash the whole estimate
             try:

@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "file": "datasets/historical/AAPL_2024-01-03_0930-1030ET.csv",
+  "sha256": "43c06892602ccdaa389d4537e5cb0b6875213d1095388217b343377329d421ec",
+  "row_count": 60,
+  "columns": [
+    "timestamp_ms",
+    "bid",
+    "ask",
+    "last",
+    "bid_size",
+    "ask_size",
+    "volume"
+  ],
+  "start_timestamp_ms": 1704292200000,
+  "end_timestamp_ms": 1704295740000,
+  "data_type": "historical",
+  "provider": "Alpaca Markets (alpaca-py SDK, StockHistoricalDataClient.get_stock_quotes)",
+  "source_url": "https://data.alpaca.markets/v2/stocks/quotes (feed=iex), acquired via historical-execution/download_quotes.py",
+  "license": "Alpaca Market Data API terms of use; internal research/backtesting use",
+  "timezone": "UTC (source); session corresponds to America/New_York 09:30-10:30 on 2024-01-03",
+  "symbol": "AAPL",
+  "venue": "IEX",
+  "resolution": "Real IEX top-of-book quotes, resampled to 1 last-quote-per-minute (60 bars for the 60-minute session, chosen to match ExecutionSession's one-child-order-per-market-event design); no trade prints acquired (last = quote midpoint); volume=0 (no trade data); bid_size/ask_size converted from round lots to shares (x100) per Alpaca's documented pre-Nov-2025 CTA/UTP quote convention",
+  "notes": "Source: 325,196 raw NBBO-style quotes from IEX via Alpaca (historical-execution/data/raw/alpaca/AAPL_2024-01-03_1430-1530_quotes.csv, immutable, see its .metadata.json). Cleaning: dropped 126 rows with non-positive or crossed bid/ask; dropped 50,411 rows (~15.5%) as outliers >2%% from the session median bid/ask (clustered at an anomalous ask=199.00 and bid<100, evidently away/bad quotes - see historical-execution/inspect_outliers.py); resampled remaining valid quotes to 1 row per minute (last observation in each minute), leaving 60 rows for the 60-minute session. No trade data was acquired in this environment (no ALPACA_API_KEY/ALPACA_SECRET_KEY, no network egress to Alpaca's API) so this dataset is quote-only: 'last' is the quote midpoint and 'volume' is 0 throughout - POV cannot size child orders off real volume as a direct consequence, see PHASE2_STATUS.md. No L2/L3 depth is present; only real top-of-book, sizes corrected from round lots to shares. See historical-execution/normalize.py for the full, commented transformation pipeline and historical-execution/data/raw/alpaca/*.metadata.json for raw acquisition provenance."
+}
