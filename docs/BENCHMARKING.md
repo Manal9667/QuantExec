@@ -142,27 +142,48 @@ hidden:
    a stage that allocates and frees heavily without growing peak RSS
    would look "free" here even though it's doing real allocator work.
 
-## 7. Performance regression thresholds
+## 7. Performance regression thresholds (automated)
 
-`benchmark_v2` deliberately does **not** hardcode a pass/fail threshold.
-A threshold measured on one machine (this repository's sandbox: 1 vCPU,
-shared/virtualized) would be silently wrong - either constantly failing
-or falsely reassuring - on any other machine, which is worse than no
-threshold at all.
+`benchmark_v2` still does **not** hardcode a pass/fail threshold in C++ -
+an absolute threshold measured on one machine would be silently wrong on
+any other. Instead, the threshold logic lives in
+`scripts/check_perf_regression.py`, driven by a committed baseline in
+`docs/benchmarks/thresholds.json`, and runs automatically in CI
+(`.github/workflows/ci.yml`, "Performance regression check" step).
 
-To set real thresholds for your own CI/dev machine:
+How it stays meaningful without being flaky on variable CI hardware:
 
-1. Run `./build/benchmark_v2 datasets/sample_synthetic.csv` (and/or a
-   larger generated workload) at least 3 separate times on that machine.
-2. Record the median of medians per stage in a table shaped like §5
-   above, in this file, under a new "§7.1 <your machine's name>" heading.
-3. Pick a tolerance (e.g., "fail if median exceeds 1.5x the recorded
-   baseline for that stage") appropriate to how noisy that specific
-   machine's numbers are - a shared CI runner needs a looser tolerance
-   than a dedicated bare-metal box.
-4. Wire that comparison into whatever CI step runs `benchmark_v2`, if
-   any exists yet (none does in this repository today - see
-   `LIMITATIONS.md`).
+- It generates a **deterministic** workload (20,000 events, seed 42, via
+  `datasets/generate_sample.py`) so the same code path is measured every
+  time and `benchmark_v2 --json` emits a machine-readable summary line.
+- It compares against the baseline with a **generous tolerance multiplier**
+  (default `4.0`): a stage fails only if it is more than 4x slower than the
+  recorded baseline, and whole-pipeline throughput fails only if it drops
+  below `baseline / 4`. That band is wide enough to absorb the 2-4x spread
+  between CI runners, but still catches the regressions that actually
+  matter - an accidental `O(n^2)`, a dropped `-O2`, a per-event heap
+  allocation - which change timings by an order of magnitude, not 2x.
+- **Sub-100µs stages are not gated individually** (`strategy_logic`,
+  `analytics`), because at that scale run-to-run noise dominates any real
+  signal; they are still recorded for context. The whole-pipeline
+  throughput floor is the primary signal.
+
+Usage:
+
+```bash
+# Check against the committed baseline (exit non-zero on regression):
+python3 scripts/check_perf_regression.py --build-dir build
+
+# Record a fresh baseline on YOUR reference machine (run it a few times,
+# on a quiet machine, and commit the result):
+python3 scripts/check_perf_regression.py --build-dir build --update-baseline
+```
+
+The committed baseline was recorded on this repository's sandbox (1 vCPU,
+shared/virtualized - see §1), so its absolute numbers are not portable;
+the tolerance band is what makes the *check* portable. Regenerate the
+baseline with `--update-baseline` when you intentionally change
+performance characteristics or move to a different reference machine.
 
 ## 8. What this benchmark does NOT claim
 
