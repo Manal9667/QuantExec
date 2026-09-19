@@ -110,16 +110,21 @@ a release/adoption review.
 
 ## 6. Testing
 
-- **No CI configuration is committed** (no `.github/workflows/`, etc.).
-  All the commands in `BASELINE.md` and this README are meant to be run
-  manually or wired into whatever CI system you use.
+- **CI runs on GitHub Actions** (`.github/workflows/ci.yml`): it builds the
+  C++ engine, runs the GoogleTest suites via ctest, runs the Python backend
+  tests against the freshly built extension, builds the React dashboard, and
+  runs the performance-regression check. `BASELINE.md` remains the frozen,
+  hand-run reproducibility record.
+- **Performance regression thresholds are wired into CI.**
+  `scripts/check_perf_regression.py` compares `benchmark_v2 --json` output to
+  a committed baseline (`docs/benchmarks/thresholds.json`) with a generous
+  tolerance, so only large (algorithmic) regressions fail a build. The
+  baseline's absolute numbers are machine-specific (see
+  `docs/BENCHMARKING.md` §7); the tolerance band is what makes the check
+  portable across CI hardware.
 - **No frontend smoke test exists yet** for the primary dashboard
   workflow — the frontend's correctness is currently checked only by
   `npm run build` succeeding, not by an automated interaction test.
-- **Performance regression thresholds are not wired into any automated
-  check.** `benchmarks/benchmark_v2.cpp` reports numbers; nothing
-  currently fails a build if they regress. See `docs/BENCHMARKING.md` §7
-  for how to set thresholds for your own machine.
 
 ## 7. Benchmarking
 

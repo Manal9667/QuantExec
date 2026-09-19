@@ -55,6 +55,12 @@ jobs:
       - name: Reproducible experiment (smoke)
         run: PYTHONPATH=build python python/run_experiment.py configs/example_experiment.yaml
 
+      - name: Performance regression check
+        # Runs benchmark_v2 against a deterministic workload and compares to the
+        # committed baseline in docs/benchmarks/thresholds.json with a generous
+        # tolerance, so only large (algorithmic) regressions fail the build.
+        run: python scripts/check_perf_regression.py --build-dir build
+
   frontend:
     name: React dashboard
     runs-on: ubuntu-latest
