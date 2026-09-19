@@ -17,23 +17,11 @@
 #include "../include/execution.h"
 #include "../include/algorithms.h"
 #include "../include/market_data.h"
-#include <cassert>
+#include "test_util.h"
 #include <cmath>
 #include <iostream>
 #include <string>
-
-int test_count = 0;
-int pass_count = 0;
-
-void assert_true(const std::string& name, bool condition) {
-    test_count++;
-    if (condition) {
-        pass_count++;
-        std::cout << "OK   " << name << std::endl;
-    } else {
-        std::cout << "FAIL " << name << std::endl;
-    }
-}
+#include <vector>
 
 struct StressCheck {
     std::string dataset;
@@ -92,52 +80,55 @@ void run_stress_case(const std::string& dataset, const std::string& label, Order
     }
 }
 
-int main() {
-    std::cout << "Running execution-realism stress tests...\n\n";
+namespace {
+const std::vector<StressCheck> kStressCases = {
+    {"datasets/stress/wide_spread.csv", "wide_spread"},
+    {"datasets/stress/thin_liquidity.csv", "thin_liquidity"},
+    {"datasets/stress/price_gap.csv", "price_gap"},
+    {"datasets/stress/zero_volume.csv", "zero_volume"},
+    {"datasets/stress/incomplete_depth.csv", "incomplete_depth"},
+    {"datasets/stress/rapid_price_change.csv", "rapid_price_change"},
+};
+}  // namespace
 
-    const std::vector<StressCheck> cases = {
-        {"datasets/stress/wide_spread.csv", "wide_spread"},
-        {"datasets/stress/thin_liquidity.csv", "thin_liquidity"},
-        {"datasets/stress/price_gap.csv", "price_gap"},
-        {"datasets/stress/zero_volume.csv", "zero_volume"},
-        {"datasets/stress/incomplete_depth.csv", "incomplete_depth"},
-        {"datasets/stress/rapid_price_change.csv", "rapid_price_change"},
-    };
-
-    for (const auto& c : cases) {
+// Every stress dataset must satisfy the cross-cutting execution-report
+// invariants for BOTH a buy and a sell parent order (see run_stress_case).
+TEST(StressTest, invariants_hold_for_every_dataset_both_sides) {
+    for (const auto& c : kStressCases) {
         run_stress_case(c.dataset, c.label, OrderSide::Buy);
         run_stress_case(c.dataset, c.label, OrderSide::Sell);
     }
+}
 
-    // Thin liquidity specifically should produce a PARTIAL fill for a
-    // 1000-share order against single-digit displayed sizes - if this ever
-    // fills 100%, either the book isn't respecting displayed size or the
-    // test dataset stopped being "thin".
-    {
-        CsvMarketSource source("datasets/stress/thin_liquidity.csv");
-        TWAPAlgorithm twap;
-        const auto orders = twap.generate_orders(1, OrderSide::Buy, 1000, 1e9, 5);
-        ExecutionSession session;
-        const auto result = session.run(source, orders, 100.0);
-        assert_true("thin_liquidity: 1000-share order against single-digit sizes is NOT fully filled",
-                    result.filled_quantity < result.requested_quantity);
-    }
+// Thin liquidity specifically should produce a PARTIAL fill for a 1000-share
+// order against single-digit displayed sizes - if this ever fills 100%,
+// either the book isn't respecting displayed size or the test dataset stopped
+// being "thin".
+TEST(StressTest, thin_liquidity_order_is_not_fully_filled) {
+    CsvMarketSource source("datasets/stress/thin_liquidity.csv");
+    TWAPAlgorithm twap;
+    const auto orders = twap.generate_orders(1, OrderSide::Buy, 1000, 1e9, 5);
+    ExecutionSession session;
+    const auto result = session.run(source, orders, 100.0);
+    assert_true("thin_liquidity: 1000-share order against single-digit sizes is NOT fully filled",
+                result.filled_quantity < result.requested_quantity);
+}
 
-    // Zero volume: no trades should be reported as market volume, but
-    // resting displayed liquidity (bid_size/ask_size) still allows fills -
-    // this documents that "zero volume" in this schema means "no *trade*
-    // activity was reported", not "no liquidity was displayed" (see
-    // docs/EXECUTION_ASSUMPTIONS.md).
-    {
-        CsvMarketSource source("datasets/stress/zero_volume.csv");
-        TWAPAlgorithm twap;
-        const auto orders = twap.generate_orders(1, OrderSide::Buy, 1000, 1e9, 5);
-        ExecutionSession session;
-        const auto result = session.run(source, orders, 100.0);
-        assert_true("zero_volume: market_vwap is 0 when no trade volume was reported",
-                    result.market_vwap == 0.0);
-    }
+// Zero volume: no trades should be reported as market volume, but resting
+// displayed liquidity (bid_size/ask_size) still allows fills - this documents
+// that "zero volume" in this schema means "no *trade* activity was reported",
+// not "no liquidity was displayed" (see docs/EXECUTION_ASSUMPTIONS.md).
+TEST(StressTest, zero_volume_reports_zero_market_vwap) {
+    CsvMarketSource source("datasets/stress/zero_volume.csv");
+    TWAPAlgorithm twap;
+    const auto orders = twap.generate_orders(1, OrderSide::Buy, 1000, 1e9, 5);
+    ExecutionSession session;
+    const auto result = session.run(source, orders, 100.0);
+    assert_true("zero_volume: market_vwap is 0 when no trade volume was reported",
+                result.market_vwap == 0.0);
+}
 
-    std::cout << "\nResults: " << pass_count << "/" << test_count << " passed" << std::endl;
-    return pass_count == test_count ? 0 : 1;
+int main(int argc, char** argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }
