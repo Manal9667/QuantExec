@@ -21,7 +21,14 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterator, Optional
 
-DEFAULT_DB_PATH = Path(__file__).resolve().parent.parent / "experiments" / "experiments.db"
+from config import settings
+
+# Location of the SQLite database. Sourced from configuration (spec section
+# 41) - override with QUANTEXEC_DB_PATH / .env - but kept as a reassignable
+# module global so tests can still point the whole module at a temporary file
+# by setting db.DEFAULT_DB_PATH directly (get_connection reads it at call
+# time; see backend/tests/test_api_reproducibility.py).
+DEFAULT_DB_PATH = settings.db_path
 
 # Step 6: explicit experiment state machine. queued -> running -> one of
 # {completed, failed, cancelled}. Centralized here so main.py and

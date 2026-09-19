@@ -6,11 +6,17 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field, model_validator
 
+import config
+
 
 class CostConfig(BaseModel):
-    commission_bps: float = 0.0
-    exchange_fee_bps: float = 0.0
-    fixed_fee_per_fill: float = 0.0
+    # Defaults come from configuration (spec section 41) so a deployment can
+    # set house transaction-cost assumptions once (QUANTEXEC_COMMISSION_BPS
+    # etc. / .env) instead of every request repeating them. Unset -> 0.0, the
+    # previous hardcoded default, so behaviour is unchanged out of the box.
+    commission_bps: float = Field(default_factory=lambda: config.settings.default_commission_bps)
+    exchange_fee_bps: float = Field(default_factory=lambda: config.settings.default_exchange_fee_bps)
+    fixed_fee_per_fill: float = Field(default_factory=lambda: config.settings.default_fixed_fee_per_fill)
 
 
 class ImpactConfig(BaseModel):
