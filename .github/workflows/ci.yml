@@ -61,6 +61,10 @@ jobs:
         # tolerance, so only large (algorithmic) regressions fail the build.
         run: python scripts/check_perf_regression.py --build-dir build
 
+      - name: OpenAPI schema is in sync
+        # Fails if docs/openapi.json drifts from the live FastAPI schema.
+        run: PYTHONPATH=build:backend python scripts/export_openapi.py --check
+
   frontend:
     name: React dashboard
     runs-on: ubuntu-latest

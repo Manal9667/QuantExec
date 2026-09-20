@@ -42,17 +42,32 @@ from schemas import (
     ExperimentSummaryOut,
     FillOut,
     ImpactEstimateOut,
+    MetricsResponse,
     StrategyInfo,
 )
 
+TAGS_METADATA = [
+    {"name": "strategies", "description": "Discover the available execution strategies and the fields each one needs."},
+    {"name": "experiments", "description": "Create experiments (runs the real C++ engine) and read their results, fills, and metrics."},
+    {"name": "system", "description": "Operational endpoints (health/liveness)."},
+]
+
 app = FastAPI(
-    title="Quant Execution Engine API",
+    title="QuantExec Execution Engine API",
+    summary="Historical market-execution simulator: run TWAP/VWAP/POV parent orders against replayed liquidity and read the resulting execution-quality analytics.",
     description=(
-        "Read-only + experiment-triggering API over the C++ execution engine. "
-        "Every result originates from an actual ExecutionSession run - see "
-        "backend/experiment_service.py."
+        "Read-only + experiment-triggering API over the C++ execution engine.\n\n"
+        "**Every result originates from an actual `ExecutionSession` run** "
+        "(see `backend/experiment_service.py`) - there are no mocked responses "
+        "(spec §32/§40). This is a research/backtesting system, **not** a live "
+        "trading platform or broker (spec §48).\n\n"
+        "Interactive docs: **`/docs`** (Swagger UI) and **`/redoc`** (ReDoc). "
+        "The raw schema is at **`/openapi.json`**; a committed copy lives at "
+        "`docs/openapi.json` (regenerate with `scripts/export_openapi.py`)."
     ),
     version="0.2.0",
+    license_info={"name": "See repository LICENSE"},
+    openapi_tags=TAGS_METADATA,
 )
 
 # CORS allow-list. Defaults to "*" (permissive) for local dev - the React
@@ -95,14 +110,16 @@ def handle_experiment_error(request, exc: ExperimentError):
     )
 
 
-@app.get("/strategies", response_model=list[StrategyInfo])
+@app.get("/strategies", response_model=list[StrategyInfo], tags=["strategies"],
+         summary="List available execution strategies")
 def list_strategies():
     """Static description of what each strategy actually needs - reflects
     the real ExperimentRequest validation, not aspirational docs."""
     return STRATEGIES
 
 
-@app.post("/experiments", response_model=ExperimentDetailOut, status_code=201)
+@app.post("/experiments", response_model=ExperimentDetailOut, status_code=201,
+          tags=["experiments"], summary="Run an experiment through the engine")
 def create_experiment(req: ExperimentRequest, allow_duplicate: bool = False):
     """Run one experiment through the real engine.
 
@@ -172,7 +189,8 @@ def create_experiment(req: ExperimentRequest, allow_duplicate: bool = False):
     return _load_experiment_detail(experiment_id)
 
 
-@app.delete("/experiments/{experiment_id}", response_model=ExperimentDetailOut)
+@app.delete("/experiments/{experiment_id}", response_model=ExperimentDetailOut,
+            tags=["experiments"], summary="Cancel a stranded 'running' experiment")
 def cancel_experiment(experiment_id: int):
     """Step 6 'cancelled' state.
 
@@ -203,7 +221,8 @@ def cancel_experiment(experiment_id: int):
     return _load_experiment_detail(experiment_id)
 
 
-@app.get("/experiments", response_model=list[ExperimentSummaryOut])
+@app.get("/experiments", response_model=list[ExperimentSummaryOut],
+         tags=["experiments"], summary="List past experiments (most recent first)")
 def list_experiments(limit: int = Query(100, ge=1, le=1000)):
     conn = db.get_connection()
     rows = db.list_experiments(conn, limit=limit)
@@ -275,12 +294,14 @@ def _load_experiment_detail(experiment_id: int) -> ExperimentDetailOut:
     )
 
 
-@app.get("/experiments/{experiment_id}", response_model=ExperimentDetailOut)
+@app.get("/experiments/{experiment_id}", response_model=ExperimentDetailOut,
+         tags=["experiments"], summary="Get one experiment's full detail")
 def get_experiment(experiment_id: int):
     return _load_experiment_detail(experiment_id)
 
 
-@app.get("/experiments/{experiment_id}/fills", response_model=list[FillOut])
+@app.get("/experiments/{experiment_id}/fills", response_model=list[FillOut],
+         tags=["experiments"], summary="Get an experiment's individual fills")
 def get_experiment_fills(experiment_id: int):
     conn = db.get_connection()
     if db.get_experiment(conn, experiment_id) is None:
@@ -289,19 +310,16 @@ def get_experiment_fills(experiment_id: int):
     return [FillOut(**{k: r[k] for k in FillOut.model_fields}) for r in rows]
 
 
-@app.get("/experiments/{experiment_id}/metrics")
+@app.get("/experiments/{experiment_id}/metrics", response_model=MetricsResponse,
+         tags=["experiments"], summary="Get an experiment's execution metrics + costs")
 def get_experiment_metrics(experiment_id: int):
     detail = _load_experiment_detail(experiment_id)
     if detail.metrics is None:
         raise HTTPException(status_code=404, detail="No metrics recorded for this experiment")
-    return {
-        "metrics": detail.metrics,
-        "costs": detail.costs,
-        "impact": detail.impact,
-    }
+    return MetricsResponse(metrics=detail.metrics, costs=detail.costs, impact=detail.impact)
 
 
-@app.get("/health")
+@app.get("/health", tags=["system"], summary="Liveness/readiness probe")
 def health():
     return {"status": "ok"}
 

@@ -174,3 +174,12 @@ class StrategyInfo(BaseModel):
     description: str
     required_fields: list[str]
     optional_fields: list[str]
+
+
+class MetricsResponse(BaseModel):
+    """Response body for GET /experiments/{id}/metrics: the execution metrics
+    plus the cost breakdown and (optional) market-impact estimate."""
+
+    metrics: ExecutionMetricsOut
+    costs: Optional[CostBreakdownOut] = None
+    impact: Optional[ImpactEstimateOut] = None

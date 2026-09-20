@@ -123,6 +123,38 @@ every row for missing columns, malformed data, duplicate/non-monotonic
 timestamps, invalid bid/ask, and non-finite or negative values. Full
 schema and validation rules: [`dataset.md`](dataset.md).
 
+## API documentation
+
+The backend is self-documenting via FastAPI/OpenAPI. With the backend
+running (`uvicorn ...` or `docker compose up`):
+
+- **Swagger UI** — interactive, try-it-out: http://localhost:8000/docs
+- **ReDoc** — reference view: http://localhost:8000/redoc
+- **Raw schema**: http://localhost:8000/openapi.json
+
+A static copy of the schema is committed at
+[`docs/openapi.json`](docs/openapi.json) so the contract is reviewable
+without running the server. Regenerate it after changing endpoints/models:
+
+```bash
+PYTHONPATH=build:backend python3 scripts/export_openapi.py
+# or fail if it's stale (used in CI):
+PYTHONPATH=build:backend python3 scripts/export_openapi.py --check
+```
+
+Endpoints (tagged `strategies` / `experiments` / `system`):
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/strategies` | List strategies and their required/optional fields |
+| POST | `/experiments` | Run an experiment through the C++ engine (201) |
+| GET | `/experiments` | List past experiments |
+| GET | `/experiments/{id}` | Full detail (config, metrics, costs, impact) |
+| GET | `/experiments/{id}/fills` | Individual fills |
+| GET | `/experiments/{id}/metrics` | Metrics + cost breakdown + impact |
+| DELETE | `/experiments/{id}` | Cancel a stranded `running` row (see `LIMITATIONS.md`) |
+| GET | `/health` | Liveness/readiness probe |
+
 ## Documentation map
 
 | Document | What's in it |
@@ -132,6 +164,7 @@ schema and validation rules: [`dataset.md`](dataset.md).
 | [`docs/EXECUTION_ASSUMPTIONS.md`](docs/EXECUTION_ASSUMPTIONS.md) | Exactly what the matching/fill model does and doesn't simulate (partial fills, queue position, latency, cost decomposition, buy/sell sign conventions) |
 | [`docs/BENCHMARKING.md`](docs/BENCHMARKING.md) | Benchmark methodology, recorded numbers, how to set your own regression thresholds |
 | [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Running the stack (Docker Compose, config, reverse proxy, scaling, security checklist) |
+| [`docs/openapi.json`](docs/openapi.json) | Committed OpenAPI schema for the backend API (see "API documentation" below) |
 | [`LIMITATIONS.md`](LIMITATIONS.md) | Everything this system does not do yet, stated plainly |
 
 ## Project structure
