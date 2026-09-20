@@ -51,9 +51,26 @@ export default function ExperimentDetail({ experimentId, onBack }) {
       </button>
 
       <div className="panel">
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <strong>Experiment #{detail.id} — {detail.symbol} ({detail.strategy})</strong>
-          <span className={`pill ${detail.status}`}>{detail.status}</span>
+          <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <span className={`pill ${detail.status}`}>{detail.status}</span>
+            {detail.status === "running" && (
+              // DELETE only applies to a row still 'running' (e.g. orphaned by
+              // a crash) - the backend rejects it otherwise (see main.py).
+              <button
+                onClick={() =>
+                  api
+                    .deleteExperiment(detail.id)
+                    .then((d) => setDetail(d))
+                    .catch((e) => setError(e.message))
+                }
+                style={{ cursor: "pointer" }}
+              >
+                Cancel run
+              </button>
+            )}
+          </span>
         </div>
         <p className="muted">
           {detail.side} {detail.quantity} shares · dataset: {detail.dataset} · created {detail.created_at}

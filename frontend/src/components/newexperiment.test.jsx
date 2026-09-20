@@ -82,6 +82,35 @@ describe("NewExperiment", () => {
     expect(payload).not.toHaveProperty("slices");
   });
 
+  it("sends VWAP volume_profile and price overrides only when provided", async () => {
+    const user = userEvent.setup();
+    render(<NewExperiment onCreated={() => {}} />);
+
+    await user.selectOptions(screen.getByLabelText(/strategy/i), "VWAP");
+    await user.type(screen.getByLabelText(/volume profile/i), "0.4, 0.3, 0.2, 0.1");
+    await user.type(screen.getByLabelText(/arrival price/i), "101.5");
+    await user.click(screen.getByRole("button", { name: /run experiment/i }));
+
+    await waitFor(() => expect(api.createExperiment).toHaveBeenCalledTimes(1));
+    const payload = api.createExperiment.mock.calls[0][0];
+    expect(payload.strategy).toBe("VWAP");
+    expect(payload.volume_profile).toEqual([0.4, 0.3, 0.2, 0.1]);
+    expect(payload.arrival_price).toBe(101.5);
+    // limit_price was left blank -> must not be sent (backend auto-derives).
+    expect(payload).not.toHaveProperty("limit_price");
+  });
+
+  it("omits optional overrides when the fields are left blank (TWAP)", async () => {
+    const user = userEvent.setup();
+    render(<NewExperiment onCreated={() => {}} />);
+    await user.click(screen.getByRole("button", { name: /run experiment/i }));
+    await waitFor(() => expect(api.createExperiment).toHaveBeenCalledTimes(1));
+    const payload = api.createExperiment.mock.calls[0][0];
+    expect(payload).not.toHaveProperty("arrival_price");
+    expect(payload).not.toHaveProperty("limit_price");
+    expect(payload).not.toHaveProperty("volume_profile");
+  });
+
   it("shows a backend error instead of crashing when the run fails", async () => {
     const user = userEvent.setup();
     api.createExperiment.mockRejectedValue(new Error("dataset not found"));

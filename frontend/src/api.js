@@ -35,4 +35,7 @@ export const api = {
   getMetrics: (id) => request(`/experiments/${id}/metrics`),
   createExperiment: (payload) =>
     request("/experiments", { method: "POST", body: JSON.stringify(payload) }),
+  // DELETE only affects a row still in 'running' (e.g. orphaned by a server
+  // crash) - see the DELETE /experiments/{id} docstring in backend/main.py.
+  deleteExperiment: (id) => request(`/experiments/${id}`, { method: "DELETE" }),
 };

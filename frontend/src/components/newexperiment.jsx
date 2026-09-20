@@ -12,6 +12,13 @@ const DEFAULTS = {
   min_order_qty: 1,
   max_order_qty: 0,
   latency_ms: 0,
+  // Optional benchmark/limit overrides. Blank = let the backend auto-derive
+  // from the dataset's first tick (arrival = first mid, limit = first ask*1.02).
+  arrival_price: "",
+  limit_price: "",
+  // VWAP-only: comma-separated volume weights (e.g. "0.4,0.3,0.2,0.1"). Blank =
+  // backend uses a uniform profile.
+  volume_profile: "",
   commission_bps: 0.5,
   exchange_fee_bps: 0.1,
   fixed_fee_per_fill: 0,
@@ -55,11 +62,30 @@ export default function NewExperiment({ onCreated }) {
       payload.slices = Number(form.slices);
       payload.latency_ms = Number(form.latency_ms);
     }
+    if (form.strategy === "VWAP" && String(form.volume_profile).trim() !== "") {
+      // "0.4, 0.3, 0.2, 0.1" -> [0.4, 0.3, 0.2, 0.1]; the backend normalizes.
+      const weights = String(form.volume_profile)
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s !== "")
+        .map(Number);
+      if (weights.some((w) => Number.isNaN(w))) {
+        setSubmitting(false);
+        setError("Volume profile must be a comma-separated list of numbers.");
+        return;
+      }
+      payload.volume_profile = weights;
+    }
     if (form.strategy === "POV") {
       payload.participation_rate = Number(form.participation_rate);
       payload.min_order_qty = Number(form.min_order_qty);
       payload.max_order_qty = Number(form.max_order_qty);
     }
+
+    // Optional benchmark/limit overrides: send only when the user set them,
+    // so a blank field leaves the backend's auto-derivation in place.
+    if (String(form.arrival_price).trim() !== "") payload.arrival_price = Number(form.arrival_price);
+    if (String(form.limit_price).trim() !== "") payload.limit_price = Number(form.limit_price);
 
     try {
       const created = await api.createExperiment(payload);
@@ -114,6 +140,13 @@ export default function NewExperiment({ onCreated }) {
             </>
           )}
 
+          {form.strategy === "VWAP" && (
+            <label>Volume profile (optional, comma-separated weights)
+              <input placeholder="e.g. 0.4, 0.3, 0.2, 0.1" value={form.volume_profile}
+                     onChange={set("volume_profile")} />
+            </label>
+          )}
+
           {form.strategy === "POV" && (
             <>
               <label>Participation rate (0-1)
@@ -137,6 +170,14 @@ export default function NewExperiment({ onCreated }) {
           </label>
           <label>Fixed fee per fill
             <input type="number" step="0.01" value={form.fixed_fee_per_fill} onChange={set("fixed_fee_per_fill")} />
+          </label>
+          <label>Arrival price (optional, blank = auto)
+            <input type="number" step="0.01" placeholder="auto: first mid" value={form.arrival_price}
+                   onChange={set("arrival_price")} />
+          </label>
+          <label>Limit price (optional, blank = auto)
+            <input type="number" step="0.01" placeholder="auto: first ask ×1.02" value={form.limit_price}
+                   onChange={set("limit_price")} />
           </label>
           <label>
             <span>
