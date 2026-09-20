@@ -1,36 +1,14 @@
 #include "../include/algorithms.h"
+#include "test_util.h"
 #include <iostream>
 #include <cassert>
 #include <numeric>
 
-int test_count = 0;
-int pass_count = 0;
-
-template<typename T, typename U>
-void assert_eq(const std::string& name, T actual, U expected) {
-    test_count++;
-    if (actual == expected) {
-        pass_count++;
-        std::cout << "✓ " << name << std::endl;
-    } else {
-        std::cout << "✗ " << name << " (got " << actual << ", expected " << expected << ")" << std::endl;
-    }
-}
-
-void assert_true(const std::string& name, bool condition) {
-    test_count++;
-    if (condition) {
-        pass_count++;
-        std::cout << "✓ " << name << std::endl;
-    } else {
-        std::cout << "✗ " << name << std::endl;
-    }
-}
 
 /**
  * Test 1: TWAP divides evenly
  */
-void test_twap_divides_evenly() {
+TEST(AlgorithmsTest, test_twap_divides_evenly) {
     TWAPAlgorithm twap;
     auto orders = twap.generate_orders(1, OrderSide::Buy, 1000, 100.0, 10);
     
@@ -49,7 +27,7 @@ void test_twap_divides_evenly() {
 /**
  * Test 2: TWAP handles remainder
  */
-void test_twap_handles_remainder() {
+TEST(AlgorithmsTest, test_twap_handles_remainder) {
     TWAPAlgorithm twap;
     // 1000 / 3 = 333 remainder 1
     // Should be [334, 333, 333]
@@ -72,7 +50,7 @@ void test_twap_handles_remainder() {
 /**
  * Test 3: VWAP with uniform profile equals TWAP
  */
-void test_vwap_uniform_matches_twap() {
+TEST(AlgorithmsTest, test_vwap_uniform_matches_twap) {
     TWAPAlgorithm twap;
     VWAPAlgorithm vwap;
     
@@ -92,7 +70,7 @@ void test_vwap_uniform_matches_twap() {
 /**
  * Test 4: VWAP with profile
  */
-void test_vwap_with_profile() {
+TEST(AlgorithmsTest, test_vwap_with_profile) {
     VWAPAlgorithm vwap;
     // Profile: 40% early, 30%, 20%, 10%
     std::vector<double> profile = {0.4, 0.3, 0.2, 0.1};
@@ -119,7 +97,7 @@ void test_vwap_with_profile() {
 /**
  * Test 5: VWAP skewed profile
  */
-void test_vwap_skewed_profile() {
+TEST(AlgorithmsTest, test_vwap_skewed_profile) {
     VWAPAlgorithm vwap;
     // Skewed: 70% early, 30% later
     std::vector<double> profile = {0.7, 0.3};
@@ -135,7 +113,7 @@ void test_vwap_skewed_profile() {
 /**
  * Test 6: Algorithm names
  */
-void test_algorithm_names() {
+TEST(AlgorithmsTest, test_algorithm_names) {
     TWAPAlgorithm twap;
     VWAPAlgorithm vwap;
     AdaptiveAlgorithm adaptive;
@@ -148,7 +126,7 @@ void test_algorithm_names() {
 /**
  * Test 7: Child order IDs are unique
  */
-void test_child_order_ids_unique() {
+TEST(AlgorithmsTest, test_child_order_ids_unique) {
     TWAPAlgorithm twap;
     auto orders = twap.generate_orders(5, OrderSide::Buy, 1000, 100.0, 5);
     
@@ -162,7 +140,7 @@ void test_child_order_ids_unique() {
 /**
  * Test 8: Orders have correct side and type
  */
-void test_order_side_and_type() {
+TEST(AlgorithmsTest, test_order_side_and_type) {
     TWAPAlgorithm twap;
     auto orders = twap.generate_orders(1, OrderSide::Sell, 500, 99.5, 2);
     
@@ -176,7 +154,7 @@ void test_order_side_and_type() {
 /**
  * Test 9: Large order (stress test)
  */
-void test_large_order() {
+TEST(AlgorithmsTest, test_large_order) {
     TWAPAlgorithm twap;
     uint64_t huge_qty = 1000000;  // 1 million shares
     auto orders = twap.generate_orders(1, OrderSide::Buy, huge_qty, 100.0, 100);
@@ -193,7 +171,7 @@ void test_large_order() {
 /**
  * Test 10: VWAP handles profile longer than num_slices
  */
-void test_vwap_long_profile() {
+TEST(AlgorithmsTest, test_vwap_long_profile) {
     VWAPAlgorithm vwap;
     // Profile with 10 buckets, but only request 5 slices
     std::vector<double> profile = {0.1, 0.15, 0.2, 0.2, 0.15, 0.1, 0.05, 0.03, 0.01, 0.01};
@@ -211,27 +189,8 @@ void test_vwap_long_profile() {
     assert_eq("total qty is 1000", total, 1000UL);
 }
 
-int main() {
-    std::cout << "Running ExecutionAlgorithm tests...\n\n";
-    
-    test_twap_divides_evenly();
-    test_twap_handles_remainder();
-    test_vwap_uniform_matches_twap();
-    test_vwap_with_profile();
-    test_vwap_skewed_profile();
-    test_algorithm_names();
-    test_child_order_ids_unique();
-    test_order_side_and_type();
-    test_large_order();
-    test_vwap_long_profile();
-    
-    std::cout << "\nResults: " << pass_count << "/" << test_count << " passed\n";
-    
-    if (pass_count == test_count) {
-        std::cout << "✓ All tests passed!" << std::endl;
-        return 0;
-    } else {
-        std::cout << "✗ Some tests failed" << std::endl;
-        return 1;
-    }
+int main(int argc, char** argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    int rc = RUN_ALL_TESTS();
+    return rc;
 }

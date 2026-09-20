@@ -22,12 +22,15 @@ from typing import Any, Iterator
 
 
 def _make_logger() -> logging.Logger:
+    from config import settings
+
     logger = logging.getLogger("execution_engine")
     if not logger.handlers:
         handler = logging.StreamHandler(sys.stdout)
         handler.setFormatter(logging.Formatter("%(message)s"))
         logger.addHandler(handler)
-        logger.setLevel(logging.INFO)
+        # Log level is configurable (spec section 41); defaults to INFO.
+        logger.setLevel(getattr(logging, settings.log_level, logging.INFO))
         logger.propagate = False
     return logger
 

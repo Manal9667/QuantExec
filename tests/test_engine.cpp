@@ -1,35 +1,13 @@
 #include "../include/engine.h"
+#include "test_util.h"
 #include <cassert>
 #include <iostream>
 
-int test_count = 0;
-int pass_count = 0;
-
-template<typename T, typename U>
-void assert_eq(const std::string& name, T actual, U expected) {
-    test_count++;
-    if (actual == expected) {
-        pass_count++;
-        std::cout << "✓ " << name << std::endl;
-    } else {
-        std::cout << "✗ " << name << " (got " << actual << ", expected " << expected << ")" << std::endl;
-    }
-}
-
-void assert_true(const std::string& name, bool condition) {
-    test_count++;
-    if (condition) {
-        pass_count++;
-        std::cout << "✓ " << name << std::endl;
-    } else {
-        std::cout << "✗ " << name << std::endl;
-    }
-}
 
 /**
  * Test 1: Market order fills immediately
  */
-void test_market_order_fills() {
+TEST(EngineTest, test_market_order_fills) {
     MatchingEngine engine;
     
     // Add resting sell order
@@ -48,7 +26,7 @@ void test_market_order_fills() {
 /**
  * Test 2: Limit order can rest
  */
-void test_limit_order_rests() {
+TEST(EngineTest, test_limit_order_rests) {
     MatchingEngine engine;
     
     // Add buy limit that doesn't cross
@@ -62,7 +40,7 @@ void test_limit_order_rests() {
 /**
  * Test 3: Partial fill across price levels
  */
-void test_partial_fill_across_levels() {
+TEST(EngineTest, test_partial_fill_across_levels) {
     MatchingEngine engine;
     
     // Add two sell levels
@@ -85,7 +63,7 @@ void test_partial_fill_across_levels() {
 /**
  * Test 4: FIFO at same price level
  */
-void test_fifo_at_price_level() {
+TEST(EngineTest, test_fifo_at_price_level) {
     MatchingEngine engine;
     
     // Add two orders at same price, first one arrived first
@@ -108,7 +86,7 @@ void test_fifo_at_price_level() {
 /**
  * Test 5: Limit order partially fills and rests
  */
-void test_limit_partial_fill_and_rest() {
+TEST(EngineTest, test_limit_partial_fill_and_rest) {
     MatchingEngine engine;
     
     // Add sell order
@@ -127,7 +105,7 @@ void test_limit_partial_fill_and_rest() {
 /**
  * Test 6: Market order with insufficient liquidity
  */
-void test_market_insufficient_liquidity() {
+TEST(EngineTest, test_market_insufficient_liquidity) {
     MatchingEngine engine;
     
     // Only 50 shares available
@@ -145,7 +123,7 @@ void test_market_insufficient_liquidity() {
 /**
  * Test 7: Trades are recorded
  */
-void test_trades_recorded() {
+TEST(EngineTest, test_trades_recorded) {
     MatchingEngine engine;
     
     Order sell1(1, OrderSide::Sell, OrderType::Limit, 100.0, 100);
@@ -162,7 +140,7 @@ void test_trades_recorded() {
 /**
  * Test 8: Limit buy doesn't cross limit price
  */
-void test_limit_buy_respects_limit() {
+TEST(EngineTest, test_limit_buy_respects_limit) {
     MatchingEngine engine;
     
     // Seller asking 100.5
@@ -180,7 +158,7 @@ void test_limit_buy_respects_limit() {
 /**
  * Test 9: Limit sell doesn't cross limit price
  */
-void test_limit_sell_respects_limit() {
+TEST(EngineTest, test_limit_sell_respects_limit) {
     MatchingEngine engine;
     
     // Buyer bidding 99.5
@@ -198,7 +176,7 @@ void test_limit_sell_respects_limit() {
 /**
  * Test 10: Fill both sides correctly
  */
-void test_fill_both_sides_correctly() {
+TEST(EngineTest, test_fill_both_sides_correctly) {
     MatchingEngine engine;
     
     Order sell1(1, OrderSide::Sell, OrderType::Limit, 100.0, 100);
@@ -214,27 +192,8 @@ void test_fill_both_sides_correctly() {
     assert_eq("qty is correct", fills[0].qty, 100UL);
 }
 
-int main() {
-    std::cout << "Running MatchingEngine tests...\n\n";
-    
-    test_market_order_fills();
-    test_limit_order_rests();
-    test_partial_fill_across_levels();
-    test_fifo_at_price_level();
-    test_limit_partial_fill_and_rest();
-    test_market_insufficient_liquidity();
-    test_trades_recorded();
-    test_limit_buy_respects_limit();
-    test_limit_sell_respects_limit();
-    test_fill_both_sides_correctly();
-    
-    std::cout << "\nResults: " << pass_count << "/" << test_count << " passed\n";
-    
-    if (pass_count == test_count) {
-        std::cout << "✓ All tests passed!" << std::endl;
-        return 0;
-    } else {
-        std::cout << "✗ Some tests failed" << std::endl;
-        return 1;
-    }
+int main(int argc, char** argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    int rc = RUN_ALL_TESTS();
+    return rc;
 }
