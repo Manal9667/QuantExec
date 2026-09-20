@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0",
+  "file": "/projects/sandbox/QuantExec/datasets/synthetic/trending_up.csv",
+  "sha256": "2182c99c77544c812b8838b4af95215944edf66ee28c766bbb93fda1efb30729",
+  "row_count": 90,
+  "columns": [
+    "timestamp_ms",
+    "last",
+    "bid",
+    "ask",
+    "bid_size",
+    "ask_size",
+    "volume",
+    "bar_volume",
+    "bid_depth",
+    "ask_depth"
+  ],
+  "start_timestamp_ms": 60000,
+  "end_timestamp_ms": 5400000,
+  "data_type": "synthetic",
+  "provider": null,
+  "source_url": null,
+  "license": null,
+  "timezone": null,
+  "symbol": "SYNTR",
+  "venue": null,
+  "resolution": "synthetic 1-minute top-of-book (+1 depth level)",
+  "notes": "Steady upward intraday trend: positive drift with moderate noise."
+}

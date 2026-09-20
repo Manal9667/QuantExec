@@ -92,13 +92,24 @@ Windows the compiled Python extension sits under `build/Release`, not
 
 ## Data: synthetic vs. historical
 
-**This repository ships only synthetic data.** `datasets/sample_synthetic.csv`
-is deterministic and generated (`datasets/generate_sample.py`) — it is
-useful for testing the engine's own correctness and determinism, but it
-is not evidence about how any strategy would perform on a real market.
+**The bundled data is mostly synthetic.** `datasets/sample_synthetic.csv`
+is a small deterministic fixture (`datasets/generate_sample.py`) used by
+the tests. A **diverse synthetic suite** lives under `datasets/synthetic/`
+(`datasets/generate_synthetic_suite.py`) — five deterministic regimes
+(calm/liquid, high-volatility, wide-spread/illiquid, trending,
+mean-reverting), each with **non-zero traded volume so the POV strategy
+actually fills** (unlike the quote-only real dataset). Regenerate them
+with:
 
-No real historical dataset is bundled, and that's a disclosed limitation,
-not an oversight (see `LIMITATIONS.md`). Before treating any CSV as a
+```bash
+python3 datasets/generate_synthetic_suite.py --with-manifests
+```
+
+One **real** dataset is bundled — `datasets/historical/AAPL_2024-01-03_0930-1030ET.csv`
+(real AAPL IEX quotes) — but it is quote-only (`volume=0`), so it exercises
+TWAP/VWAP but not POV. None of the synthetic data is evidence about
+real-market strategy performance; that remains a disclosed limitation, not
+an oversight (see `LIMITATIONS.md`). Before treating any CSV as a
 trustworthy input, run it through the provenance tool:
 
 ```bash

@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0",
+  "file": "/projects/sandbox/QuantExec/datasets/synthetic/highvol_active.csv",
+  "sha256": "4f5d0f5c72257861ba9dea1d998fa80cab5836a477329006c731f7bd5476e0eb",
+  "row_count": 90,
+  "columns": [
+    "timestamp_ms",
+    "last",
+    "bid",
+    "ask",
+    "bid_size",
+    "ask_size",
+    "volume",
+    "bar_volume",
+    "bid_depth",
+    "ask_depth"
+  ],
+  "start_timestamp_ms": 60000,
+  "end_timestamp_ms": 5400000,
+  "data_type": "synthetic",
+  "provider": null,
+  "source_url": null,
+  "license": null,
+  "timezone": null,
+  "symbol": "SYNHV",
+  "venue": null,
+  "resolution": "synthetic 1-minute top-of-book (+1 depth level)",
+  "notes": "High-volatility active name: wider swings, medium depth, heavy volume."
+}
