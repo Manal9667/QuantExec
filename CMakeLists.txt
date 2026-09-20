@@ -13,7 +13,11 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # FIND PYTHON (required for bindings)
 # ============================================================================
 
-find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
+# Development.Module (not the full Development component) is all a pybind11
+# extension module needs - it does NOT require the Python embedding library
+# (libpythonX.Y.so), which is frequently absent on CI runners and would
+# otherwise make find_package fail there. See pybind11 docs "FindPython".
+find_package(Python3 REQUIRED COMPONENTS Interpreter Development.Module)
 
 # ============================================================================
 # FIND PYBIND11 (required for bindings)
@@ -61,6 +65,26 @@ pybind11_add_module(executor src/py_bindings.cpp)
 
 # Link against our library
 target_link_libraries(executor PRIVATE executor_lib)
+
+# ============================================================================
+# GOOGLETEST (spec section 32)
+# ============================================================================
+
+# Prefer a system/vcpkg GoogleTest if one is already available; otherwise
+# fetch a pinned release. Network access is only needed on the first
+# configure when GoogleTest is not already installed.
+find_package(GTest CONFIG QUIET)
+if(NOT GTest_FOUND)
+    include(FetchContent)
+    FetchContent_Declare(
+        googletest
+        GIT_REPOSITORY https://github.com/google/googletest.git
+        GIT_TAG v1.15.2
+    )
+    # For Windows: prevent overriding the parent project's compiler/linker settings
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(googletest)
+endif()
 
 # ============================================================================
 # TESTS
@@ -115,6 +139,16 @@ add_test(NAME test_replay COMMAND test_replay WORKING_DIRECTORY ${CMAKE_SOURCE_D
 add_executable(test_stress tests/test_stress.cpp)
 target_link_libraries(test_stress executor_lib)
 add_test(NAME test_stress COMMAND test_stress WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+# Every test suite now runs under GoogleTest (spec section 32). Each test_*.cpp
+# provides its own main() that calls RUN_ALL_TESTS(), so we link the core
+# GTest::gtest library (not gtest_main). The plain (non-keyword) signature is
+# used to match the target_link_libraries() calls above for these targets.
+foreach(t
+        test_book test_engine test_simulator test_algorithms test_integrate
+        test_phase test_costs test_phase2 test_replay test_stress)
+    target_link_libraries(${t} GTest::gtest)
+endforeach()
 # ============================================================================
 # BENCHMARKS (Phase 6)
 # ============================================================================

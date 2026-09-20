@@ -1,0 +1,87 @@
+name: CI
+
+# Continuous integration for QuantExec (spec section 32/35: tests and
+# performance must be run, not merely claimed). Builds the C++ engine + its
+# GoogleTest suites, runs the Python backend tests against the freshly built
+# pybind11 extension, and builds the React dashboard.
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+# Cancel superseded runs on the same ref to save CI minutes.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cpp-and-backend:
+    name: C++ engine + Python backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install build + Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pybind11
+          python -m pip install -r backend/requirements.txt -r backend/requirements-dev.txt
+
+      - name: Configure (CMake, Release)
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DPython3_EXECUTABLE="$(which python)" \
+            -Dpybind11_DIR="$(python -c 'import pybind11; print(pybind11.get_cmake_dir())')"
+
+      - name: Build (engine, tests, benchmarks, pybind11 module)
+        run: cmake --build build --config Release -j"$(nproc)"
+
+      - name: C++ tests (GoogleTest via ctest)
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Python backend tests
+        # build/ carries the compiled `executor` extension; backend/ carries the
+        # flat-imported backend modules.
+        run: PYTHONPATH=build:backend python -m pytest backend/tests -v
+
+      - name: Reproducible experiment (smoke)
+        run: PYTHONPATH=build python python/run_experiment.py configs/example_experiment.yaml
+
+      - name: Performance regression check
+        # Runs benchmark_v2 against a deterministic workload and compares to the
+        # committed baseline in docs/benchmarks/thresholds.json with a generous
+        # tolerance, so only large (algorithmic) regressions fail the build.
+        run: python scripts/check_perf_regression.py --build-dir build
+
+  frontend:
+    name: React dashboard
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test (Vitest)
+        run: npm test
+
+      - name: Build
+        run: npm run build

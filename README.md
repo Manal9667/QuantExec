@@ -170,6 +170,26 @@ execution realism under stressed market conditions).
 
 ## Configuration
 
+### Backend runtime configuration (environment / `.env`)
+
+Backend runtime knobs are read from environment variables (spec section 41)
+rather than hardcoded — copy [`.env.example`](.env.example) to `.env` at the
+repo root and edit, or export the variables directly. Every one is optional
+and defaults to the value that was previously hardcoded, so an absent `.env`
+changes nothing. Real shell variables always override the `.env` file.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `QUANTEXEC_DB_PATH` | `experiments/experiments.db` | SQLite database location |
+| `QUANTEXEC_API_HOST` / `QUANTEXEC_API_PORT` | `127.0.0.1` / `8000` | Host/port for `python backend/main.py` |
+| `QUANTEXEC_CORS_ORIGINS` | `*` | Comma-separated CORS allow-list (tighten before deploying) |
+| `QUANTEXEC_LOG_LEVEL` | `INFO` | Log level (`DEBUG`…`CRITICAL`) |
+| `QUANTEXEC_COMMISSION_BPS` / `QUANTEXEC_EXCHANGE_FEE_BPS` / `QUANTEXEC_FIXED_FEE_PER_FILL` | `0.0` | Default transaction-cost assumptions applied when a request omits `costs` |
+
+See [`backend/config.py`](backend/config.py) for the (dependency-free) loader.
+
+### Experiment configuration
+
 Experiments are configured via YAML for the CLI, or JSON for the API —
 same underlying fields either way:
 

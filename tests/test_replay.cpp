@@ -1,4 +1,5 @@
 #include "../include/replay.h"
+#include "test_util.h"
 #include "../include/market_data.h"
 #include <cassert>
 #include <cstdio>
@@ -7,30 +8,9 @@
 #include <string>
 #include <vector>
 
-int test_count = 0;
-int pass_count = 0;
 std::vector<std::string> g_temp_files;  // cleaned up in main() on exit
 
-void assert_true(const std::string& name, bool condition) {
-    test_count++;
-    if (condition) {
-        pass_count++;
-        std::cout << "OK   " << name << std::endl;
-    } else {
-        std::cout << "FAIL " << name << std::endl;
-    }
-}
 
-template <typename A, typename B>
-void assert_eq(const std::string& name, const A& actual, const B& expected) {
-    test_count++;
-    if (actual == expected) {
-        pass_count++;
-        std::cout << "OK   " << name << std::endl;
-    } else {
-        std::cout << "FAIL " << name << " (got " << actual << ", expected " << expected << ")" << std::endl;
-    }
-}
 
 // ---------------------------------------------------------------------------
 // Helper: write a small CSV to a temp path (cross-platform - Windows has no
@@ -56,7 +36,7 @@ const char* kBasicCsv =
 // ---------------------------------------------------------------------------
 // 1. Parsing produces a well-formed, ordered event stream
 // ---------------------------------------------------------------------------
-void test_parse_produces_events_in_order() {
+TEST(ReplayTest, test_parse_produces_events_in_order) {
     const auto path = write_temp_csv("replay_basic.csv", kBasicCsv);
     auto result = parse_market_events(path, "SYN");
     assert_true("parse: basic file loads ok", result.ok());
@@ -89,7 +69,7 @@ void test_parse_produces_events_in_order() {
 // ---------------------------------------------------------------------------
 // 2. events_to_states() reproduces what CsvMarketSource would report
 // ---------------------------------------------------------------------------
-void test_events_to_states_matches_csv_source() {
+TEST(ReplayTest, test_events_to_states_matches_csv_source) {
     const auto path = write_temp_csv("replay_cross_check.csv", kBasicCsv);
     auto parsed = parse_market_events(path, "SYN");
     assert_true("cross-check: parse ok", parsed.ok());
@@ -126,14 +106,14 @@ void test_events_to_states_matches_csv_source() {
 // 3. Validation: rejects the same defects the manifest tool and
 //    CsvMarketSource reject, with a specific reason each time.
 // ---------------------------------------------------------------------------
-void test_rejects_missing_columns() {
+TEST(ReplayTest, test_rejects_missing_columns) {
     const auto path = write_temp_csv("replay_missing_col.csv", "timestamp_ms,last,bid,ask\n1000,100,99.9,100.1\n");
     auto result = parse_market_events(path);
     assert_true("reject: missing columns detected", !result.ok());
     assert_eq("reject: missing columns status", int(result.status), int(ReplayLoadStatus::MissingColumns));
 }
 
-void test_rejects_duplicate_timestamp() {
+TEST(ReplayTest, test_rejects_duplicate_timestamp) {
     const auto path = write_temp_csv(
         "replay_dup_ts.csv",
         "timestamp_ms,last,bid,ask,bid_size,ask_size,volume\n"
@@ -144,7 +124,7 @@ void test_rejects_duplicate_timestamp() {
     assert_eq("reject: duplicate timestamp status", int(result.status), int(ReplayLoadStatus::DuplicateTimestamp));
 }
 
-void test_rejects_non_monotonic_timestamp() {
+TEST(ReplayTest, test_rejects_non_monotonic_timestamp) {
     const auto path = write_temp_csv(
         "replay_nonmono.csv",
         "timestamp_ms,last,bid,ask,bid_size,ask_size,volume\n"
@@ -155,7 +135,7 @@ void test_rejects_non_monotonic_timestamp() {
     assert_eq("reject: non-monotonic timestamp status", int(result.status), int(ReplayLoadStatus::NonMonotonicTimestamp));
 }
 
-void test_rejects_crossed_market() {
+TEST(ReplayTest, test_rejects_crossed_market) {
     const auto path = write_temp_csv(
         "replay_crossed.csv",
         "timestamp_ms,last,bid,ask,bid_size,ask_size,volume\n"
@@ -165,7 +145,7 @@ void test_rejects_crossed_market() {
     assert_eq("reject: crossed market status", int(result.status), int(ReplayLoadStatus::InvalidBidAsk));
 }
 
-void test_rejects_non_finite() {
+TEST(ReplayTest, test_rejects_non_finite) {
     const auto path = write_temp_csv(
         "replay_nan.csv",
         "timestamp_ms,last,bid,ask,bid_size,ask_size,volume\n"
@@ -179,7 +159,7 @@ void test_rejects_non_finite() {
 // 4. No-lookahead: strategies driven through ReplayController can never see
 //    state from a timestamp later than current_time_ms().
 // ---------------------------------------------------------------------------
-void test_no_lookahead() {
+TEST(ReplayTest, test_no_lookahead) {
     const auto path = write_temp_csv("replay_lookahead.csv", kBasicCsv);
     auto parsed = parse_market_events(path, "SYN");
     ReplayController controller(parsed.events);
@@ -198,7 +178,7 @@ void test_no_lookahead() {
     assert_true("no-lookahead: is_end_of_stream() true after full replay", controller.is_end_of_stream());
 }
 
-void test_no_lookahead_after_seek() {
+TEST(ReplayTest, test_no_lookahead_after_seek) {
     const auto path = write_temp_csv("replay_seek.csv", kBasicCsv);
     auto parsed = parse_market_events(path, "SYN");
     ReplayController controller(parsed.events);
@@ -222,7 +202,7 @@ void test_no_lookahead_after_seek() {
 // ---------------------------------------------------------------------------
 // 5. Explicit replay-boundary / time-window controls
 // ---------------------------------------------------------------------------
-void test_time_window_filtering() {
+TEST(ReplayTest, test_time_window_filtering) {
     const auto path = write_temp_csv("replay_window.csv", kBasicCsv);
     auto parsed = parse_market_events(path, "SYN");
     ReplayController controller(parsed.events);
@@ -237,7 +217,7 @@ void test_time_window_filtering() {
     assert_eq("window: exactly one state (t=2000) falls in [1500,2500]", count, 1);
 }
 
-void test_end_of_stream_flag() {
+TEST(ReplayTest, test_end_of_stream_flag) {
     const auto path = write_temp_csv("replay_eos.csv", kBasicCsv);
     auto parsed = parse_market_events(path, "SYN");
     ReplayController controller(parsed.events);
@@ -252,7 +232,7 @@ void test_end_of_stream_flag() {
 // 6. Missing quotes: a Trade-only tick should carry forward the last known
 //    bid/ask rather than fabricating a new one.
 // ---------------------------------------------------------------------------
-void test_missing_quote_carries_forward() {
+TEST(ReplayTest, test_missing_quote_carries_forward) {
     // Row 2 changes nothing on the quote side, only the traded volume - so
     // events_to_states() should still report row 1's bid/ask for row 2.
     const char* csv =
@@ -270,25 +250,9 @@ void test_missing_quote_carries_forward() {
     }
 }
 
-int main() {
-    std::cout << "Running replay/event pipeline tests...\n\n";
-
-    test_parse_produces_events_in_order();
-    test_events_to_states_matches_csv_source();
-    test_rejects_missing_columns();
-    test_rejects_duplicate_timestamp();
-    test_rejects_non_monotonic_timestamp();
-    test_rejects_crossed_market();
-    test_rejects_non_finite();
-    test_no_lookahead();
-    test_no_lookahead_after_seek();
-    test_time_window_filtering();
-    test_end_of_stream_flag();
-    test_missing_quote_carries_forward();
-
-    std::cout << "\nResults: " << pass_count << "/" << test_count << " passed" << std::endl;
-
+int main(int argc, char** argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    int rc = RUN_ALL_TESTS();
     for (const auto& f : g_temp_files) std::remove(f.c_str());
-
-    return pass_count == test_count ? 0 : 1;
+    return rc;
 }

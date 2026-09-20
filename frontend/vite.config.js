@@ -15,4 +15,13 @@ export default defineConfig({
       },
     },
   },
+  // Vitest config: jsdom so React components can render/interact without a
+  // browser; globals so tests read like the rest of the ecosystem (describe/
+  // it/expect) without per-file imports. See src/test/setup.js.
+  test: {
+    environment: "jsdom",
+    globals: true,
+    setupFiles: "./src/test/setup.js",
+    css: false,
+  },
 });

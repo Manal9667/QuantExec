@@ -125,7 +125,20 @@ void print_stage(const StageStats& s) {
 } // namespace
 
 int main(int argc, char** argv) {
-    const std::string dataset_path = argc > 1 ? argv[1] : "datasets/sample_synthetic.csv";
+    // Args: an optional dataset path, and an optional --json flag. In --json
+    // mode the human-readable report is still printed, but a single
+    // machine-readable line prefixed "QUANTEXEC_JSON " is appended at the end
+    // for scripts/check_perf_regression.py to parse (spec section 35).
+    std::string dataset_path = "datasets/sample_synthetic.csv";
+    bool json_mode = false;
+    for (int i = 1; i < argc; ++i) {
+        const std::string arg = argv[i];
+        if (arg == "--json") {
+            json_mode = true;
+        } else {
+            dataset_path = arg;
+        }
+    }
 
     std::cout << std::string(78, '=') << "\n";
     std::cout << "EVIDENCE-BASED BENCHMARK (Step 7)\n";
@@ -236,9 +249,32 @@ int main(int argc, char** argv) {
               << "(cumulative peak for this process - see docs/BENCHMARKING.md for what this does/doesn't isolate)\n";
 
     std::cout << "\n-- Regression thresholds (Step 7 'add performance regression thresholds') --\n";
-    std::cout << "Fill in docs/BENCHMARKING.md §Thresholds once a baseline machine's numbers are recorded;\n";
-    std::cout << "this program does not hardcode pass/fail thresholds because they are machine-specific and\n";
-    std::cout << "would silently become meaningless (and falsely reassuring) on any other machine.\n";
+    std::cout << "Machine-specific absolute thresholds live in docs/benchmarks/thresholds.json and are\n";
+    std::cout << "checked by scripts/check_perf_regression.py (run with --json for its input). This binary\n";
+    std::cout << "does not hardcode pass/fail thresholds - they would silently become meaningless on any\n";
+    std::cout << "other machine - the check script applies a generous tolerance so only large regressions\n";
+    std::cout << "(the kind that indicate an algorithmic problem, e.g. an accidental O(n^2)) fail a build.\n";
+
+    if (json_mode) {
+        auto med = [](const StageStats& s) { return s.median(); };
+        // Emit compact JSON on one line, prefixed with a sentinel so the
+        // parser can find it regardless of the human-readable text above.
+        std::cout << std::fixed << std::setprecision(6);
+        std::cout << "QUANTEXEC_JSON {"
+                  << "\"dataset\":\"" << dataset_path << "\","
+                  << "\"events\":" << num_events << ","
+                  << "\"warmup_iters\":" << kWarmupIterations << ","
+                  << "\"measured_iters\":" << kMeasuredIterations << ","
+                  << "\"peak_rss_kb\":" << peak_rss_kb() << ","
+                  << "\"stage_median_ms\":{"
+                  << "\"parsing\":" << med(parsing_stats) << ","
+                  << "\"replay\":" << med(replay_stats) << ","
+                  << "\"matching\":" << med(matching_stats) << ","
+                  << "\"strategy_logic\":" << med(strategy_stats) << ","
+                  << "\"full_execution\":" << med(full_execution_stats) << ","
+                  << "\"analytics\":" << med(analytics_stats)
+                  << "}}" << std::endl;
+    }
 
     return 0;
 }

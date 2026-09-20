@@ -1,0 +1,20 @@
+{
+  "note": "Performance baseline for scripts/check_perf_regression.py. Numbers are machine-specific; regenerate on your own reference machine with `--update-baseline`. The check applies tolerance_multiplier so only large (algorithmic) regressions fail. See docs/BENCHMARKING.md.",
+  "workload": {
+    "events": 20000,
+    "seed": 42,
+    "generator": "datasets/generate_sample.py"
+  },
+  "tolerance_multiplier": 4.0,
+  "baseline": {
+    "events_per_second": 399870.03,
+    "stage_median_ms": {
+      "parsing": 45.385138,
+      "replay": 45.638346,
+      "matching": 51.17095,
+      "strategy_logic": 0.000505,
+      "full_execution": 50.016251,
+      "analytics": 3.8e-05
+    }
+  }
+}
