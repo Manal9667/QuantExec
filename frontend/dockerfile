@@ -12,8 +12,10 @@ COPY frontend/package.json ./
 RUN npm install
 COPY frontend ./
 # No /api proxy exists once this is a static build (unlike `vite dev`), so
-# point the app straight at the backend's published port.
-ENV VITE_API_BASE_URL=http://localhost:8000
+# point the app straight at the backend's published origin. Overridable at
+# build time (docker compose passes VITE_API_BASE_URL as a build arg).
+ARG VITE_API_BASE_URL=http://localhost:8000
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 RUN npm run build
 
 FROM node:20-slim

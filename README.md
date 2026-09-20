@@ -131,6 +131,7 @@ schema and validation rules: [`dataset.md`](dataset.md).
 | [`dataset.md`](dataset.md) | CSV schema, validation rules, provenance/manifest tooling, synthetic-vs-historical policy |
 | [`docs/EXECUTION_ASSUMPTIONS.md`](docs/EXECUTION_ASSUMPTIONS.md) | Exactly what the matching/fill model does and doesn't simulate (partial fills, queue position, latency, cost decomposition, buy/sell sign conventions) |
 | [`docs/BENCHMARKING.md`](docs/BENCHMARKING.md) | Benchmark methodology, recorded numbers, how to set your own regression thresholds |
+| [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Running the stack (Docker Compose, config, reverse proxy, scaling, security checklist) |
 | [`LIMITATIONS.md`](LIMITATIONS.md) | Everything this system does not do yet, stated plainly |
 
 ## Project structure

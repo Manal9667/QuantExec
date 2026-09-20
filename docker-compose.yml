@@ -11,6 +11,16 @@ services:
       dockerfile: backend/Dockerfile
     ports:
       - "8000:8000"
+    environment:
+      # Runtime configuration (see backend/config.py / .env.example). Each has
+      # a default via ${VAR:-default}, so `docker compose up` works with no
+      # .env file; set them in your shell or a .env to override.
+      - QUANTEXEC_DB_PATH=/app/experiments/experiments.db
+      - QUANTEXEC_CORS_ORIGINS=${QUANTEXEC_CORS_ORIGINS:-*}
+      - QUANTEXEC_LOG_LEVEL=${QUANTEXEC_LOG_LEVEL:-INFO}
+      - QUANTEXEC_COMMISSION_BPS=${QUANTEXEC_COMMISSION_BPS:-0.0}
+      - QUANTEXEC_EXCHANGE_FEE_BPS=${QUANTEXEC_EXCHANGE_FEE_BPS:-0.0}
+      - QUANTEXEC_FIXED_FEE_PER_FILL=${QUANTEXEC_FIXED_FEE_PER_FILL:-0.0}
     volumes:
       # Persist the SQLite experiment database across container restarts.
       - ./experiments:/app/experiments
@@ -24,6 +34,11 @@ services:
     build:
       context: .
       dockerfile: frontend/dockerfile
+      args:
+        # Baked into the static build (there is no dev-server /api proxy in a
+        # production build). Override for a non-localhost backend, e.g.
+        # VITE_API_BASE_URL=https://api.example.com docker compose build frontend
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
     ports:
       - "5173:5173"
     depends_on:
