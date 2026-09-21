@@ -1,0 +1,37 @@
+{
+  "csv_columns": [
+    "timestamp_ms",
+    "last",
+    "bid",
+    "ask",
+    "bid_size",
+    "ask_size",
+    "volume",
+    "bar_volume"
+  ],
+  "csv_path": "raw\\alpaca\\AAPL\\AAPL_2024-01-03_1430-1530_quotes.csv",
+  "data_level": "L1",
+  "downloaded_at": "2026-09-21T03:12:16Z",
+  "end": "2024-01-03T15:30:00Z",
+  "endpoint": "/v2/stocks/{symbol}/quotes",
+  "feed": "iex",
+  "limitations": "Historical L1 quote replay from Alpaca's free IEX feed: one bid and one ask level per tick. Not a full-depth (L2) order book. Bar volume and last price are approximated from the coarser bars endpoint by merge_into_rows(); see alpaca_historical.py.",
+  "records_downloaded": 325196,
+  "records_valid": 171293,
+  "rows_written": 171293,
+  "source": "alpaca",
+  "start": "2024-01-03T14:30:00Z",
+  "symbol": "AAPL",
+  "validation": {
+    "crossed_quotes": 0,
+    "duplicate_quotes": 153777,
+    "locked_quotes": 0,
+    "non_positive_price_quotes": 0,
+    "one_sided_quotes": 126,
+    "out_of_order_quotes": 0,
+    "records_downloaded": 325196,
+    "records_valid": 171293,
+    "wide_spread_quotes": 24402,
+    "zero_size_quotes": 0
+  }
+}
