@@ -117,6 +117,67 @@ TEST(Phase2Test, test_run_pov_stops_once_target_reached) {
 }
 
 // ===========================================================================
+// ExecutionSession::run_adaptive()
+// ===========================================================================
+
+TEST(Phase2Test, test_run_adaptive_completes_and_is_engine_driven) {
+    // Ten ticks of deep, constant liquidity so adaptive's sizing - not
+    // available liquidity - is the only constraint. With base 0.5 the
+    // remaining quantity decays fast enough to fully complete within the
+    // window, and the min-qty floor clears the tail.
+    std::vector<MarketState> ticks;
+    for (int i = 0; i < 10; ++i) {
+        ticks.push_back({100.0, 0.0, 99.5, 100.0, 10000, 10000,
+                         static_cast<uint64_t>(1000 * (i + 1)), 1000,
+                         static_cast<uint64_t>(i + 1),
+                         {{99.5, 10000}}, {{100.0, 10000}}});
+    }
+    VectorMarketSource source(ticks);
+    AdaptiveAlgorithm adaptive(0.5); // aggressive base pace
+    ExecutionSession session;
+    const auto result = session.run_adaptive(source, OrderSide::Buy, /*total_qty=*/100, 1000.0, adaptive, 99.75);
+
+    assert_true("run_adaptive completes the parent order over a long-enough window",
+                result.filled_quantity == 100);
+    assert_true("fill_rate is 100% once completed", close_enough(result.fill_rate, 1.0));
+    assert_true("every fill has a real execution price from the engine",
+                !result.fills.empty() && result.fills.front().trade.price > 0.0);
+}
+
+TEST(Phase2Test, test_run_adaptive_generate_orders_throws) {
+    AdaptiveAlgorithm adaptive;
+    bool threw = false;
+    try {
+        adaptive.generate_orders(1, OrderSide::Buy, 1000, 100.0, 10);
+    } catch (const std::logic_error&) {
+        threw = true;
+    }
+    assert_true("adaptive generate_orders() throws instead of faking a schedule", threw);
+}
+
+TEST(Phase2Test, test_run_adaptive_is_reproducible) {
+    // Identical dataset + config must produce identical results (spec 27).
+    std::vector<MarketState> ticks;
+    for (int i = 0; i < 8; ++i) {
+        // Declining price (favorable for a BUY) exercises the adaptive path.
+        double px = 100.0 - i * 0.1;
+        ticks.push_back({px, 0.0, px - 0.25, px + 0.25, 10000, 10000,
+                         static_cast<uint64_t>(1000 * (i + 1)), 1000,
+                         static_cast<uint64_t>(i + 1),
+                         {{px - 0.25, 10000}}, {{px + 0.25, 10000}}});
+    }
+    AdaptiveAlgorithm adaptive(0.2, 5.0);
+    ExecutionSession s1, s2;
+    VectorMarketSource src1(ticks), src2(ticks);
+    const auto r1 = s1.run_adaptive(src1, OrderSide::Buy, 500, 1000.0, adaptive, 100.0);
+    const auto r2 = s2.run_adaptive(src2, OrderSide::Buy, 500, 1000.0, adaptive, 100.0);
+    assert_true("same filled quantity across identical runs", r1.filled_quantity == r2.filled_quantity);
+    assert_true("same fill count across identical runs", r1.fills.size() == r2.fills.size());
+    assert_true("same average execution price across identical runs",
+                close_enough(r1.average_execution_price, r2.average_execution_price));
+}
+
+// ===========================================================================
 // ExecutionSession::run_with_latency()
 // ===========================================================================
 

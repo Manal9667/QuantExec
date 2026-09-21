@@ -142,6 +142,90 @@ ExecutionResult ExecutionSession::run(
     return result;
 }
 
+ExecutionResult ExecutionSession::run_adaptive(
+    MarketDataSource& source,
+    OrderSide side,
+    uint64_t total_qty,
+    double limit_price,
+    const AdaptiveAlgorithm& adaptive,
+    double arrival_price
+) {
+    ExecutionResult result;
+    result.arrival_price = arrival_price;
+    result.requested_quantity = total_qty;
+
+    source.reset();
+    engine_.clear_book();
+    MarketState state;
+    uint64_t remaining_qty = total_qty;
+    uint64_t next_child_id = 1;
+    double market_value = 0.0;
+    uint64_t market_quantity = 0;
+    uint64_t previous_cumulative_volume = 0;
+    double first_mid = 0.0;
+    double first_spread = 0.0;
+    double last_mid = 0.0;
+
+    while (source.next(state) && remaining_qty > 0) {
+        normalize_market_state(state);
+        engine_.clear_book();
+        uint64_t level_id = 4000000000ULL;
+        for (const auto& level : state.bids) {
+            engine_.submit_order(Order(level_id++, OrderSide::Buy, OrderType::Limit,
+                                       level.price, level.qty));
+        }
+        for (const auto& level : state.asks) {
+            engine_.submit_order(Order(level_id++, OrderSide::Sell, OrderType::Limit,
+                                       level.price, level.qty));
+        }
+
+        if (state.mid_price > 0.0) {
+            if (first_mid <= 0.0) {
+                first_mid = state.mid_price;
+                if (state.bid > 0.0 && state.ask > 0.0) {
+                    first_spread = state.ask - state.bid;
+                }
+            }
+            last_mid = state.mid_price;
+        }
+
+        const uint64_t event_volume = state.bar_volume > 0
+            ? state.bar_volume
+            : state.volume >= previous_cumulative_volume
+                ? state.volume - previous_cumulative_volume
+                : 0;
+        previous_cumulative_volume = state.volume;
+        if (event_volume > 0 && state.last_price > 0.0) {
+            market_value += state.last_price * event_volume;
+            market_quantity += event_volume;
+        }
+
+        // The only strategy-specific line in this loop: Adaptive decides
+        // this event's child order size from the observed mid price versus
+        // arrival. Everything else (book setup, fills, analytics) is
+        // identical to run_pov() - the engine, not the strategy, still does
+        // all liquidity consumption (spec section 12).
+        const uint64_t child_qty =
+            adaptive.next_order_qty(state.mid_price, arrival_price, side, remaining_qty);
+        if (child_qty > 0) {
+            Order child(next_child_id++, side, OrderType::Limit, limit_price, child_qty);
+            const auto trades = engine_.submit_order(child);
+            for (const auto& trade : trades) {
+                result.filled_quantity += trade.qty;
+                result.fills.push_back({trade, state.timestamp_ms, state.bid, state.ask, event_volume});
+                remaining_qty -= std::min(remaining_qty, trade.qty);
+            }
+            if (!trades.empty()) {
+                result.completion_time_ms = state.timestamp_ms;
+            }
+        }
+    }
+
+    finalize_result(result, side, arrival_price, market_value, market_quantity,
+                    first_mid, first_spread, last_mid);
+    return result;
+}
+
 ExecutionResult ExecutionSession::run_with_latency(
     MarketDataSource& source,
     const std::vector<Order>& child_orders,

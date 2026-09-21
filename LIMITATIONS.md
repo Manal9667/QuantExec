@@ -75,9 +75,13 @@ a release/adoption review.
 
 ## 4. Strategy comparison scope
 
-- **Only TWAP, VWAP, POV, and an immediate-execution baseline are
-  implemented.** No implementation-shortfall-optimizing, adaptive, or
-  ML-driven strategies exist yet.
+- **TWAP, VWAP, POV, a price-adaptive strategy, and an
+  immediate-execution baseline are implemented.** The adaptive strategy
+  paces off remaining quantity and speeds up/slows down with price
+  favorability vs arrival (`AdaptiveAlgorithm` /
+  `ExecutionSession::run_adaptive`); it is a deterministic, rule-based
+  adaptivity, **not** an implementation-shortfall optimizer or an
+  ML-driven strategy — those do not exist here.
 - **`python/compare_strategies.py`'s sweep is only as broad as the
   datasets you point it at.** Out of the box it covers the synthetic
   fixture plus the 6 stress datasets — meaningful for correctness and

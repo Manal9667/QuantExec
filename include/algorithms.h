@@ -149,22 +149,56 @@ public:
 };
 
 /**
- * AdaptiveAlgorithm (placeholder for Phase 5+)
- * 
- * Advanced strategy that adapts execution based on:
- * - Current market conditions
- * - Real-time volume
- * - Price movement
- * - Remaining time
- * 
- * Example:
- *   If price is falling, accelerate buys
- *   If price is rising, slow down buys
- *   If volume is high, increase execution
- *   If time is running out, execute faster
+ * AdaptiveAlgorithm - price-adaptive execution.
+ *
+ * Strategy: pace execution off the *remaining* parent quantity, but speed
+ * up when the current price is favorable relative to the arrival price and
+ * slow down when it is unfavorable ("trade more when the market comes to
+ * you"). This is a real, well-known adaptive behavior, distinct from
+ * TWAP (pure clock) and VWAP (fixed volume forecast).
+ *
+ * Like POVAlgorithm, this is fundamentally a *runtime* strategy: the size
+ * of each child order depends on the price observed at that market event,
+ * which is not known when a schedule would be built. generate_orders()
+ * therefore throws (a precomputed adaptive schedule would be fake, since
+ * it could not have reacted to prices it had not seen - the same Rule-1
+ * reasoning that applies to POV). Real execution goes through
+ * ExecutionSession::run_adaptive(), which calls next_order_qty() once per
+ * replayed market event with that event's mid price.
+ *
+ * next_order_qty() is a pure function (no I/O, no book access, no fills -
+ * spec section 12: strategies decide sizing, the engine alone makes fills)
+ * and fully deterministic given its inputs (spec section 27).
  */
 class AdaptiveAlgorithm : public ExecutionAlgorithm {
 public:
+    /**
+     * base_participation: fraction of the *remaining* quantity to execute
+     *   at each market event when the price is exactly at arrival (the
+     *   neutral pace). e.g. 0.1 clears ~10% of what is left each event.
+     * price_sensitivity: how strongly favorability scales the pace. The
+     *   per-event fraction is base_participation * (1 + price_sensitivity *
+     *   favorability), where favorability is the signed fractional price
+     *   improvement vs arrival (positive = better than arrival for this
+     *   side). 0 disables adaptivity (pure remaining-based pacing).
+     * min_order_qty: floor that guarantees forward progress even when the
+     *   computed size rounds to 0, so the parent order still completes over
+     *   a long-enough window (clamped to remaining). Unlike POV - which
+     *   snaps sub-floor sizes to 0 to avoid inflating its participation
+     *   rate - Adaptive is trying to *complete* a parent order, so it makes
+     *   steady progress rather than waiting.
+     * max_participation: cap on the per-event fraction of remaining (1.0 =
+     *   may clear the entire remainder in one very favorable event).
+     */
+    explicit AdaptiveAlgorithm(double base_participation = 0.1,
+                                double price_sensitivity = 5.0,
+                                uint64_t min_order_qty = 1,
+                                double max_participation = 1.0)
+        : base_participation_(base_participation),
+          price_sensitivity_(price_sensitivity),
+          min_order_qty_(min_order_qty),
+          max_participation_(max_participation) {}
+
     std::vector<Order> generate_orders(
         uint64_t parent_order_id,
         OrderSide side,
@@ -172,8 +206,40 @@ public:
         double limit_price,
         int num_slices
     ) override;
-    
+
+    /**
+     * Decide how large the next child order should be, given the current
+     * event's mid price, the arrival price, the side, and how much of the
+     * parent order is still unfilled.
+     *
+     * favorability (fraction) =
+     *     BUY : (arrival_price - mid_price) / arrival_price
+     *     SELL: (mid_price - arrival_price) / arrival_price
+     * (0 when either price is non-positive - no signal, neutral pace.)
+     *
+     * fraction = clamp(base_participation * (1 + price_sensitivity *
+     *            favorability), 0, max_participation)
+     * qty = round(fraction * remaining_qty), then clamped to remaining and
+     *       floored at min(min_order_qty, remaining) so execution always
+     *       makes progress.
+     */
+    uint64_t next_order_qty(double mid_price,
+                            double arrival_price,
+                            OrderSide side,
+                            uint64_t remaining_qty) const;
+
+    double base_participation() const { return base_participation_; }
+    double price_sensitivity() const { return price_sensitivity_; }
+    uint64_t min_order_qty() const { return min_order_qty_; }
+    double max_participation() const { return max_participation_; }
+
     std::string name() const override { return "Adaptive"; }
+
+private:
+    double base_participation_;
+    double price_sensitivity_;
+    uint64_t min_order_qty_;
+    double max_participation_;
 };
 
 /**

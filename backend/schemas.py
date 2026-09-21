@@ -40,7 +40,7 @@ class ExperimentRequest(BaseModel):
     dataset: str = Field(..., description="Path to a CSV dataset under datasets/, e.g. datasets/sample_synthetic.csv")
     side: Literal["BUY", "SELL"]
     quantity: int = Field(..., gt=0)
-    strategy: Literal["TWAP", "VWAP", "POV"]
+    strategy: Literal["TWAP", "VWAP", "POV", "ADAPTIVE"]
 
     # TWAP / VWAP
     slices: Optional[int] = Field(default=None, gt=0, le=100_000)
@@ -50,6 +50,15 @@ class ExperimentRequest(BaseModel):
     participation_rate: Optional[float] = Field(default=None, gt=0, le=1)
     min_order_qty: int = Field(default=1, ge=1)
     max_order_qty: int = Field(default=0, ge=0)  # 0 = unbounded
+
+    # ADAPTIVE (price-adaptive). base_participation is the neutral per-event
+    # fraction of the remaining quantity; price_sensitivity scales that pace
+    # by how favorable the current price is vs arrival; max_participation
+    # caps the per-event fraction. min_order_qty (above) is reused as the
+    # forward-progress floor.
+    base_participation: Optional[float] = Field(default=None, gt=0, le=1)
+    price_sensitivity: float = Field(default=5.0, ge=0)
+    max_participation: float = Field(default=1.0, gt=0, le=1)
 
     # Optional Phase 2 latency model (spec section 30). 0 = disabled.
     latency_ms: int = Field(default=0, ge=0)
@@ -66,6 +75,8 @@ class ExperimentRequest(BaseModel):
             raise ValueError(f"'slices' is required for strategy={self.strategy}")
         if self.strategy == "POV" and not self.participation_rate:
             raise ValueError("'participation_rate' is required for strategy=POV")
+        if self.strategy == "ADAPTIVE" and not self.base_participation:
+            raise ValueError("'base_participation' is required for strategy=ADAPTIVE")
         return self
 
 

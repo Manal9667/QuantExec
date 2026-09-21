@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Optional
 
 from executor import (
+    AdaptiveAlgorithm,
     CsvMarketSource,
     ExecutionSession,
     MarketImpactConfig,
@@ -122,6 +123,13 @@ def _build_algorithm(req: ExperimentRequest):
         return algo
     if req.strategy == "POV":
         return POVAlgorithm(req.participation_rate, req.min_order_qty, req.max_order_qty)
+    if req.strategy == "ADAPTIVE":
+        return AdaptiveAlgorithm(
+            req.base_participation,
+            req.price_sensitivity,
+            req.min_order_qty,
+            req.max_participation,
+        )
     raise ExperimentError(f"Unknown strategy '{req.strategy}'", error_type="unknown_strategy")
 
 
@@ -194,6 +202,9 @@ def run_experiment(req: ExperimentRequest) -> ExperimentRun:
         if req.strategy == "POV":
             pov = _build_algorithm(req)
             result = session.run_pov(source, side, req.quantity, limit_price, pov, arrival_price)
+        elif req.strategy == "ADAPTIVE":
+            adaptive = _build_algorithm(req)
+            result = session.run_adaptive(source, side, req.quantity, limit_price, adaptive, arrival_price)
         else:
             algo = _build_algorithm(req)
             orders = algo.generate_orders(1, side, req.quantity, limit_price, req.slices)
@@ -278,5 +289,11 @@ STRATEGIES = [
         "description": "Targets a fixed percentage of realized market volume per replayed event.",
         "required_fields": ["quantity", "participation_rate"],
         "optional_fields": ["min_order_qty", "max_order_qty", "limit_price", "arrival_price"],
+    },
+    {
+        "name": "ADAPTIVE",
+        "description": "Paces off remaining quantity, trading faster when the price is favorable vs arrival and slower when it is not.",
+        "required_fields": ["quantity", "base_participation"],
+        "optional_fields": ["price_sensitivity", "max_participation", "min_order_qty", "limit_price", "arrival_price"],
     },
 ]

@@ -21,7 +21,7 @@ full test suite + a determinism check) as this documentation was written
 |---|---|---|
 | Order book + matching engine | Price-time-priority matching, market/limit orders, partial fills | `include/book.h`, `include/engine.h`, `src/` |
 | Market data / replay | CSV loading with strict validation, plus a formal `MarketEvent → MarketState` pipeline with explicit replay controls | `include/market_data.h`, `include/replay.h`, `src/replay.cpp` |
-| Execution strategies | TWAP, VWAP, POV, plus an immediate-execution baseline | `include/algorithms.h` |
+| Execution strategies | TWAP, VWAP, POV, and a price-adaptive strategy | `include/algorithms.h` |
 | Cost & slippage analytics | Commission/exchange/fixed fees, spread cost, slippage, implementation shortfall, optional impact estimate | `include/costs.h`, `include/impact.h` |
 | Dataset provenance tooling | Validates and manifests any CSV before it's trusted; distinguishes synthetic from historical data | `scripts/build_dataset_manifest.py` |
 | Fair multi-strategy comparison | Runs every strategy under identical data/config, reports distributions | `python/compare_strategies.py` |
@@ -92,14 +92,35 @@ Windows the compiled Python extension sits under `build/Release`, not
 
 ## Data: synthetic vs. historical
 
-**This repository ships only synthetic data.** `datasets/sample_synthetic.csv`
-is deterministic and generated (`datasets/generate_sample.py`) — it is
-useful for testing the engine's own correctness and determinism, but it
-is not evidence about how any strategy would perform on a real market.
+This repository ships **both** a synthetic fixture and one real historical
+dataset:
 
-No real historical dataset is bundled, and that's a disclosed limitation,
-not an oversight (see `LIMITATIONS.md`). Before treating any CSV as a
-trustworthy input, run it through the provenance tool:
+- **Synthetic** — `datasets/sample_synthetic.csv`, deterministic and
+  generated (`datasets/generate_sample.py`). Useful for testing the
+  engine's own correctness and determinism, but *not* evidence about how
+  any strategy would perform on a real market.
+- **Historical** — `datasets/historical/AAPL_2024-01-03_0930-1030ET.csv`,
+  real AAPL top-of-book quotes from **Alpaca's IEX feed** (2024-01-03,
+  09:30–10:30 ET). Full provenance (provider, source, license, SHA-256,
+  cleaning steps) lives in its `.manifest.json`, and the raw 325k-quote
+  capture it was derived from is under `historical-execution/data/raw/`.
+
+  This dataset has real, **disclosed** gaps — read them before drawing any
+  conclusions from it:
+  - **Quote-only, no trade prints.** The environment that acquired it had
+    no Alpaca trade-data access, so `last` is the quote midpoint and
+    `volume` is `0` on every row. A direct consequence: **POV produces no
+    fills against this dataset** (it sizes off realized volume, which is
+    always 0 here).
+  - **Resampled to one row per minute** (60 rows) and **single-venue IEX**,
+    not consolidated SIP. It is one symbol, one hour, one day — not a basis
+    for generalizing about how any strategy behaves on real markets.
+
+  See `LIMITATIONS.md` §1 and `historical-execution/PHASE2_STATUS.md` for
+  the full accounting.
+
+Before treating any *new* CSV as a trustworthy input, run it through the
+provenance tool:
 
 ```bash
 python3 scripts/build_dataset_manifest.py <your_file>.csv \
@@ -153,7 +174,7 @@ orderbook/
 ├── datasets/
 │   ├── sample_synthetic.csv        # synthetic fixture (NOT real market data)
 │   ├── generate_sample.py
-│   ├── historical/                 # empty - see dataset.md for how to add real data
+│   ├── historical/                 # real AAPL IEX quotes + manifest (quote-only; see LIMITATIONS.md §1)
 │   └── stress/                     # 6 fixtures exercising execution-model edge cases
 ├── backend/                        # FastAPI + SQLite
 │   ├── main.py  schemas.py  db.py  experiment_service.py  dataset_utils.py
@@ -211,7 +232,10 @@ costs:
 ## What this system is not
 
 - Not a live trading platform, broker, or exchange connector.
-- Not validated against real historical market data yet (see `dataset.md`).
+- Not a source of general conclusions about real markets: the one bundled
+  historical dataset is a single symbol/hour/day of quote-only IEX data
+  (no trade volume), useful for exercising the pipeline end-to-end, not for
+  claims like "VWAP beats TWAP on real markets" (see `LIMITATIONS.md`).
 - Not a full L3 order-book reconstruction (queue position, cancellations
   across replayed events, and venue fragmentation are explicitly not
   modeled — see `docs/EXECUTION_ASSUMPTIONS.md`).
