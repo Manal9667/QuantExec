@@ -137,6 +137,13 @@ PYBIND11_MODULE(executor, m) {
              "Phase 2 (spec section 29): live Percentage-of-Volume execution. Sizes "
              "each child order from realized market volume during replay - unlike "
              "TWAP/VWAP, there is no precomputed order list for POV.")
+        .def("run_adaptive", &ExecutionSession::run_adaptive,
+             py::arg("source"), py::arg("side"), py::arg("total_qty"), py::arg("limit_price"),
+             py::arg("adaptive"), py::arg("arrival_price"),
+             "Price-adaptive execution: sizes each child order from the mid price "
+             "observed during replay versus the arrival price (faster when the "
+             "price is favorable, slower when not). Like POV, there is no "
+             "precomputed order list.")
         .def("engine", &ExecutionSession::engine, py::return_value_policy::reference_internal);
     
     // ========================================================================
@@ -210,6 +217,32 @@ PYBIND11_MODULE(executor, m) {
     // Real POV execution goes through ExecutionSession.run_pov(), which
     // calls next_order_qty() once per replayed market event.
     // ========================================================================
+
+    // ========================================================================
+    // ADAPTIVE (price-adaptive) - runtime strategy like POV.
+    //
+    // generate_orders() is bound for interface parity but raises a Python
+    // exception if called (throws std::logic_error in C++, which pybind11
+    // translates to RuntimeError). Real execution goes through
+    // ExecutionSession.run_adaptive(), which calls next_order_qty() once
+    // per replayed market event.
+    // ========================================================================
+
+    py::class_<AdaptiveAlgorithm>(m, "AdaptiveAlgorithm")
+        .def(py::init<double, double, uint64_t, double>(),
+             py::arg("base_participation") = 0.1,
+             py::arg("price_sensitivity") = 5.0,
+             py::arg("min_order_qty") = 1,
+             py::arg("max_participation") = 1.0)
+        .def("generate_orders", &AdaptiveAlgorithm::generate_orders)
+        .def("next_order_qty", &AdaptiveAlgorithm::next_order_qty,
+             py::arg("mid_price"), py::arg("arrival_price"),
+             py::arg("side"), py::arg("remaining_qty"))
+        .def_property_readonly("base_participation", &AdaptiveAlgorithm::base_participation)
+        .def_property_readonly("price_sensitivity", &AdaptiveAlgorithm::price_sensitivity)
+        .def_property_readonly("min_order_qty", &AdaptiveAlgorithm::min_order_qty)
+        .def_property_readonly("max_participation", &AdaptiveAlgorithm::max_participation)
+        .def("name", &AdaptiveAlgorithm::name);
 
     py::class_<POVAlgorithm>(m, "POVAlgorithm")
         .def(py::init<double, uint64_t, uint64_t>(),

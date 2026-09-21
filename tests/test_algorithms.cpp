@@ -3,6 +3,7 @@
 #include <iostream>
 #include <cassert>
 #include <numeric>
+#include <stdexcept>
 
 
 /**
@@ -187,6 +188,129 @@ TEST(AlgorithmsTest, test_vwap_long_profile) {
         total += o.qty;
     }
     assert_eq("total qty is 1000", total, 1000UL);
+}
+
+// ===========================================================================
+// AdaptiveAlgorithm::next_order_qty() - price-adaptive sizing
+// ===========================================================================
+
+/**
+ * Adaptive 1: at arrival price the pace is exactly base_participation of
+ * the remaining quantity (the neutral case, no price signal).
+ */
+TEST(AlgorithmsTest, test_adaptive_neutral_price_paces_off_remaining) {
+    AdaptiveAlgorithm adaptive;  // base 0.1, sensitivity 5.0
+    // mid == arrival -> favorability 0 -> 10% of 1000 remaining.
+    assert_eq("neutral price executes base_participation of remaining",
+              adaptive.next_order_qty(100.0, 100.0, OrderSide::Buy, 1000), 100UL);
+}
+
+/**
+ * Adaptive 2: a BUY speeds up when the price is BELOW arrival (favorable).
+ */
+TEST(AlgorithmsTest, test_adaptive_buy_accelerates_when_price_favorable) {
+    AdaptiveAlgorithm adaptive;  // base 0.1, sensitivity 5.0
+    // mid 98 vs arrival 100 -> favorability +0.02 -> 0.1*(1+5*0.02)=0.11.
+    uint64_t favorable = adaptive.next_order_qty(98.0, 100.0, OrderSide::Buy, 1000);
+    uint64_t neutral = adaptive.next_order_qty(100.0, 100.0, OrderSide::Buy, 1000);
+    assert_eq("favorable BUY price sizes larger than neutral", favorable, 110UL);
+    assert_true("favorable > neutral", favorable > neutral);
+}
+
+/**
+ * Adaptive 3: a BUY slows down when the price is ABOVE arrival (unfavorable),
+ * but still makes some progress.
+ */
+TEST(AlgorithmsTest, test_adaptive_buy_decelerates_when_price_unfavorable) {
+    AdaptiveAlgorithm adaptive;
+    // mid 102 vs arrival 100 -> favorability -0.02 -> 0.1*(1-0.1)=0.09.
+    uint64_t unfavorable = adaptive.next_order_qty(102.0, 100.0, OrderSide::Buy, 1000);
+    assert_eq("unfavorable BUY price sizes smaller than neutral", unfavorable, 90UL);
+    assert_true("unfavorable still makes progress (>0)", unfavorable > 0UL);
+}
+
+/**
+ * Adaptive 4: SELL is the mirror image - favorable when the price is ABOVE
+ * arrival.
+ */
+TEST(AlgorithmsTest, test_adaptive_sell_is_symmetric) {
+    AdaptiveAlgorithm adaptive;
+    // SELL favorable when mid > arrival.
+    uint64_t sell_favorable = adaptive.next_order_qty(102.0, 100.0, OrderSide::Sell, 1000);
+    uint64_t sell_unfavorable = adaptive.next_order_qty(98.0, 100.0, OrderSide::Sell, 1000);
+    assert_eq("favorable SELL price (mid>arrival) sizes larger", sell_favorable, 110UL);
+    assert_eq("unfavorable SELL price (mid<arrival) sizes smaller", sell_unfavorable, 90UL);
+}
+
+/**
+ * Adaptive 5: the min_order_qty floor guarantees forward progress even when
+ * the computed size rounds to 0 (small remaining, or strongly unfavorable).
+ */
+TEST(AlgorithmsTest, test_adaptive_min_qty_guarantees_progress) {
+    AdaptiveAlgorithm adaptive;  // min_order_qty defaults to 1
+    // 10% of 3 = 0.3 -> rounds to 0 -> floored to min(1, remaining).
+    assert_eq("small remaining still trades at least the floor",
+              adaptive.next_order_qty(100.0, 100.0, OrderSide::Buy, 3), 1UL);
+    // Strongly unfavorable BUY (mid far above arrival) drives the fraction
+    // to 0, but the floor still makes progress.
+    assert_eq("strongly unfavorable price still trades the floor",
+              adaptive.next_order_qty(1000.0, 100.0, OrderSide::Buy, 1000), 1UL);
+}
+
+/**
+ * Adaptive 6: the per-event fraction is capped by max_participation, and the
+ * order is never larger than the remaining parent quantity.
+ */
+TEST(AlgorithmsTest, test_adaptive_clamps_to_remaining) {
+    AdaptiveAlgorithm adaptive(0.5, 20.0, 1, 1.0);
+    // favorability (100-90)/100 = 0.1 -> 0.5*(1+20*0.1)=1.5, capped at 1.0,
+    // so it would clear 100% of remaining this event.
+    assert_eq("fraction capped at max_participation -> clears remaining",
+              adaptive.next_order_qty(90.0, 100.0, OrderSide::Buy, 200), 200UL);
+}
+
+/**
+ * Adaptive 7: no price signal (non-positive mid) falls back to neutral pace.
+ */
+TEST(AlgorithmsTest, test_adaptive_no_price_signal_is_neutral) {
+    AdaptiveAlgorithm adaptive;
+    assert_eq("missing mid price -> neutral base pace",
+              adaptive.next_order_qty(0.0, 100.0, OrderSide::Buy, 1000), 100UL);
+}
+
+/**
+ * Adaptive 8: zero remaining never generates another order.
+ */
+TEST(AlgorithmsTest, test_adaptive_zero_remaining_yields_zero) {
+    AdaptiveAlgorithm adaptive;
+    assert_eq("filled parent order generates no further child order",
+              adaptive.next_order_qty(98.0, 100.0, OrderSide::Buy, 0), 0UL);
+}
+
+/**
+ * Adaptive 9: like POV, a precomputed schedule would be fake, so
+ * generate_orders() throws rather than delegating to TWAP.
+ */
+TEST(AlgorithmsTest, test_adaptive_generate_orders_throws) {
+    AdaptiveAlgorithm adaptive;
+    bool threw = false;
+    try {
+        adaptive.generate_orders(1, OrderSide::Buy, 1000, 100.0, 10);
+    } catch (const std::logic_error&) {
+        threw = true;
+    }
+    assert_true("generate_orders() throws instead of faking an adaptive schedule", threw);
+}
+
+/**
+ * Adaptive 10: fully deterministic - identical inputs give identical outputs
+ * (spec section 27).
+ */
+TEST(AlgorithmsTest, test_adaptive_is_deterministic) {
+    AdaptiveAlgorithm adaptive(0.15, 3.0, 2, 0.8);
+    uint64_t a = adaptive.next_order_qty(97.5, 100.0, OrderSide::Buy, 5000);
+    uint64_t b = adaptive.next_order_qty(97.5, 100.0, OrderSide::Buy, 5000);
+    assert_eq("same inputs -> same output", a, b);
 }
 
 int main(int argc, char** argv) {

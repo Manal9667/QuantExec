@@ -11,6 +11,9 @@ const DEFAULTS = {
   participation_rate: 0.1,
   min_order_qty: 1,
   max_order_qty: 0,
+  base_participation: 0.1,
+  price_sensitivity: 5.0,
+  max_participation: 1.0,
   latency_ms: 0,
   commission_bps: 0.5,
   exchange_fee_bps: 0.1,
@@ -60,6 +63,12 @@ export default function NewExperiment({ onCreated }) {
       payload.min_order_qty = Number(form.min_order_qty);
       payload.max_order_qty = Number(form.max_order_qty);
     }
+    if (form.strategy === "ADAPTIVE") {
+      payload.base_participation = Number(form.base_participation);
+      payload.price_sensitivity = Number(form.price_sensitivity);
+      payload.max_participation = Number(form.max_participation);
+      payload.min_order_qty = Number(form.min_order_qty);
+    }
 
     try {
       const created = await api.createExperiment(payload);
@@ -100,6 +109,7 @@ export default function NewExperiment({ onCreated }) {
               <option value="TWAP">TWAP</option>
               <option value="VWAP">VWAP</option>
               <option value="POV">POV</option>
+              <option value="ADAPTIVE">ADAPTIVE</option>
             </select>
           </label>
 
@@ -125,6 +135,26 @@ export default function NewExperiment({ onCreated }) {
               </label>
               <label>Max order qty (0 = unbounded)
                 <input type="number" min="0" value={form.max_order_qty} onChange={set("max_order_qty")} />
+              </label>
+            </>
+          )}
+
+          {form.strategy === "ADAPTIVE" && (
+            <>
+              <label>Base participation (0-1)
+                <input type="number" step="0.01" min="0.01" max="1" value={form.base_participation}
+                       onChange={set("base_participation")} required />
+              </label>
+              <label>Price sensitivity
+                <input type="number" step="0.5" min="0" value={form.price_sensitivity}
+                       onChange={set("price_sensitivity")} />
+              </label>
+              <label>Max participation (0-1)
+                <input type="number" step="0.01" min="0.01" max="1" value={form.max_participation}
+                       onChange={set("max_participation")} />
+              </label>
+              <label>Min order qty
+                <input type="number" min="1" value={form.min_order_qty} onChange={set("min_order_qty")} />
               </label>
             </>
           )}

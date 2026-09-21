@@ -102,6 +102,30 @@ public:
         double arrival_price
     );
 
+    /**
+     * run_adaptive() - price-adaptive execution.
+     *
+     * Like run_pov(), there is no precomputed child_orders list: each
+     * replayed market event's mid price is fed to
+     * AdaptiveAlgorithm::next_order_qty() to decide that event's child
+     * order size on the fly (faster when price is favorable vs arrival,
+     * slower when not), which is then submitted through the same matching
+     * engine / liquidity-consuming fill path as every other strategy
+     * (spec section 12).
+     *
+     * total_qty is the parent order size; if the replay window ends before
+     * that target is reached, the result is underfilled - see
+     * ExecutionResult::fill_rate.
+     */
+    ExecutionResult run_adaptive(
+        MarketDataSource& source,
+        OrderSide side,
+        uint64_t total_qty,
+        double limit_price,
+        const AdaptiveAlgorithm& adaptive,
+        double arrival_price
+    );
+
     const MatchingEngine& engine() const { return engine_; }
 
 private:

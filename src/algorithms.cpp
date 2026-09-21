@@ -1,4 +1,5 @@
 #include "algorithms.h"
+#include <algorithm>
 #include <numeric>
 #include <stdexcept>
 
@@ -151,25 +152,69 @@ std::vector<Order> VWAPAlgorithm::generate_orders(
 
 /**
  * AdaptiveAlgorithm::generate_orders()
- * 
- * Placeholder for advanced adaptive algorithm.
- * For now, defaults to TWAP behavior.
- * 
- * In real implementation, this would:
- * - Monitor real-time market data
- * - Adjust execution based on current conditions
- * - React to price movements and volume spikes
+ *
+ * See the class comment in algorithms.h: like POV, Adaptive sizes each
+ * child order from data observed during replay (here the current price),
+ * so there is no honest precomputed schedule. Use
+ * ExecutionSession::run_adaptive() for real adaptive execution.
  */
 std::vector<Order> AdaptiveAlgorithm::generate_orders(
-    uint64_t parent_order_id,
-    OrderSide side,
-    uint64_t total_qty,
-    double limit_price,
-    int num_slices
+    uint64_t /*parent_order_id*/,
+    OrderSide /*side*/,
+    uint64_t /*total_qty*/,
+    double /*limit_price*/,
+    int /*num_slices*/
 ) {
-    // For now, use TWAP as baseline
-    TWAPAlgorithm twap;
-    return twap.generate_orders(parent_order_id, side, total_qty, limit_price, num_slices);
+    throw std::logic_error(
+        "AdaptiveAlgorithm::generate_orders() is not supported: Adaptive "
+        "sizes each child order from the price observed during replay, "
+        "which is not known ahead of time. Use "
+        "ExecutionSession::run_adaptive(source, side, total_qty, "
+        "limit_price, adaptive, arrival_price) instead."
+    );
+}
+
+/**
+ * AdaptiveAlgorithm::next_order_qty()
+ *
+ * Time complexity: O(1). Pure function: does not touch the book, the
+ * engine, or any strategy-internal fill bookkeeping (spec section 12).
+ */
+uint64_t AdaptiveAlgorithm::next_order_qty(double mid_price,
+                                           double arrival_price,
+                                           OrderSide side,
+                                           uint64_t remaining_qty) const {
+    if (remaining_qty == 0) {
+        return 0;
+    }
+
+    // Favorability: signed fractional price improvement vs arrival for this
+    // side. No signal (0) when either price is non-positive.
+    double favorability = 0.0;
+    if (mid_price > 0.0 && arrival_price > 0.0) {
+        const double direction = side == OrderSide::Buy ? 1.0 : -1.0;
+        favorability = direction * (arrival_price - mid_price) / arrival_price;
+    }
+
+    double fraction = base_participation_ * (1.0 + price_sensitivity_ * favorability);
+    if (fraction < 0.0) {
+        fraction = 0.0;
+    }
+    if (fraction > max_participation_) {
+        fraction = max_participation_;
+    }
+
+    double raw = fraction * static_cast<double>(remaining_qty);
+    uint64_t qty = static_cast<uint64_t>(raw + 0.5); // round to nearest share
+
+    if (qty > remaining_qty) {
+        qty = remaining_qty;
+    }
+    // Guarantee forward progress: never stall on a neutral/unfavorable event.
+    if (qty < min_order_qty_) {
+        qty = std::min(min_order_qty_, remaining_qty);
+    }
+    return qty;
 }
 
 
