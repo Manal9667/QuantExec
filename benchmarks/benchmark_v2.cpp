@@ -72,6 +72,31 @@ uint64_t fnv1a64(const std::string& path) {
     return hash;
 }
 
+std::string json_escape(const std::string& value) {
+    std::ostringstream escaped;
+    for (unsigned char character : value) {
+        switch (character) {
+        case '"': escaped << "\\\""; break;
+        case '\\': escaped << "\\\\"; break;
+        case '\b': escaped << "\\b"; break;
+        case '\f': escaped << "\\f"; break;
+        case '\n': escaped << "\\n"; break;
+        case '\r': escaped << "\\r"; break;
+        case '\t': escaped << "\\t"; break;
+        default:
+            if (character < 0x20) {
+                char unicode_escape[7];
+                std::snprintf(unicode_escape, sizeof(unicode_escape),
+                              "\\u%04x", static_cast<unsigned int>(character));
+                escaped << unicode_escape;
+            } else {
+                escaped << static_cast<char>(character);
+            }
+        }
+    }
+    return escaped.str();
+}
+
 struct StageStats {
     std::string name;
     std::vector<double> samples_ms;
@@ -261,7 +286,7 @@ int main(int argc, char** argv) {
         // parser can find it regardless of the human-readable text above.
         std::cout << std::fixed << std::setprecision(6);
         std::cout << "QUANTEXEC_JSON {"
-                  << "\"dataset\":\"" << dataset_path << "\","
+                  << "\"dataset\":\"" << json_escape(dataset_path) << "\","
                   << "\"events\":" << num_events << ","
                   << "\"warmup_iters\":" << kWarmupIterations << ","
                   << "\"measured_iters\":" << kMeasuredIterations << ","

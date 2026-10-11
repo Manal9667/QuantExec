@@ -35,6 +35,17 @@ describe("NewExperiment", () => {
     expect(await screen.findByText("Time-weighted")).toBeInTheDocument();
   });
 
+  it("offers a guided starter preset for the demo workflow", async () => {
+    const user = userEvent.setup();
+    render(<NewExperiment onCreated={() => {}} />);
+
+    const preset = await screen.findByRole("button", { name: /synthetic walkthrough/i });
+    await user.click(preset);
+
+    expect(screen.getByDisplayValue("datasets/sample_synthetic.csv")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("TWAP")).toBeInTheDocument();
+  });
+
   it("submits a correctly shaped payload and reports the created id", async () => {
     const user = userEvent.setup();
     const onCreated = vi.fn();

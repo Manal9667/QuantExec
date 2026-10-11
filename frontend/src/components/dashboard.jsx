@@ -25,6 +25,20 @@ export default function Dashboard({ onOpenExperiment, onNewExperiment }) {
 
   return (
     <div>
+      <div className="panel intro-panel">
+        <div>
+          <div className="eyebrow">Execution simulator</div>
+          <h2 style={{ margin: "8px 0 8px" }}>Run a real order-book experiment in under a minute.</h2>
+          <p className="muted" style={{ margin: 0 }}>
+            QuantExec executes the C++ matching engine against deterministic synthetic data or bundled
+            historical AAPL data, then returns fills, slippage, and cost metrics from the backend.
+          </p>
+        </div>
+        <div className="quick-actions">
+          <button className="primary" onClick={onNewExperiment}>Launch a demo run</button>
+        </div>
+      </div>
+
       <div className="stat-row">
         <div className="stat">
           <div className="label">Experiments</div>

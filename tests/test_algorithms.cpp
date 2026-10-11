@@ -4,6 +4,7 @@
 #include <cassert>
 #include <numeric>
 #include <stdexcept>
+#include <limits>
 
 
 /**
@@ -188,6 +189,38 @@ TEST(AlgorithmsTest, test_vwap_long_profile) {
         total += o.qty;
     }
     assert_eq("total qty is 1000", total, 1000UL);
+}
+
+TEST(AlgorithmsTest, rejects_invalid_strategy_configuration) {
+    VWAPAlgorithm vwap;
+    EXPECT_THROW(vwap.set_volume_profile({0.5, -0.1}), std::invalid_argument);
+    EXPECT_THROW(vwap.set_volume_profile({0.5, std::numeric_limits<double>::infinity()}),
+                 std::invalid_argument);
+
+    EXPECT_THROW({ const POVAlgorithm invalid(1.1); }, std::invalid_argument);
+    EXPECT_THROW({
+        const POVAlgorithm invalid(std::numeric_limits<double>::quiet_NaN());
+    }, std::invalid_argument);
+
+    EXPECT_THROW({ const AdaptiveAlgorithm invalid(1.1); }, std::invalid_argument);
+    EXPECT_THROW({
+        const AdaptiveAlgorithm invalid(0.1, std::numeric_limits<double>::infinity());
+    }, std::invalid_argument);
+    EXPECT_THROW({ const AdaptiveAlgorithm invalid(0.1, 1.0, 0); },
+                 std::invalid_argument);
+}
+
+TEST(AlgorithmsTest, maximum_parent_quantities_are_safely_capped) {
+    const uint64_t maximum_quantity = std::numeric_limits<uint64_t>::max();
+    POVAlgorithm pov(1.0);
+    AdaptiveAlgorithm adaptive(1.0, 0.0, 1, 1.0);
+
+    assert_eq("POV caps rounded size before integer conversion",
+              pov.next_order_qty(maximum_quantity, maximum_quantity),
+              maximum_quantity);
+    assert_eq("Adaptive caps rounded size before integer conversion",
+              adaptive.next_order_qty(100.0, 100.0, OrderSide::Buy, maximum_quantity),
+              maximum_quantity);
 }
 
 // ===========================================================================

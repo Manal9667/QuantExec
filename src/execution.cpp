@@ -126,6 +126,9 @@ ExecutionResult ExecutionSession::run(
             continue;
         }
         const auto& order = child_orders[order_index++];
+        if (order.qty == 0) {
+            continue;
+        }
         const auto trades = engine_.submit_order(order);
         for (const auto& trade : trades) {
             result.filled_quantity += trade.qty;
@@ -294,7 +297,10 @@ ExecutionResult ExecutionSession::run_with_latency(
         // A new order is "decided" this event, at the same one-per-event
         // cadence run() uses, then queued until its latency elapses.
         if (order_index < child_orders.size()) {
-            pending.push_back({state.timestamp_ms + latency_ms, child_orders[order_index++]});
+            const auto& order = child_orders[order_index++];
+            if (order.qty > 0) {
+                pending.push_back({state.timestamp_ms + latency_ms, order});
+            }
         }
 
         // Submit every pending order whose latency has now elapsed. A

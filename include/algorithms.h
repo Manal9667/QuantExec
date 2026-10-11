@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 #include <cmath>
+#include <stdexcept>
 
 /**
  * ExecutionAlgorithm
@@ -129,6 +130,11 @@ public:
      *   [0.4, 0.3, 0.2, 0.1]  // More volume early, less later
      */
     void set_volume_profile(const std::vector<double>& profile) {
+        for (double volume : profile) {
+            if (!std::isfinite(volume) || volume < 0.0) {
+                throw std::invalid_argument("VWAP profile values must be finite and non-negative");
+            }
+        }
         volume_profile = profile;
     }
     
@@ -197,7 +203,15 @@ public:
         : base_participation_(base_participation),
           price_sensitivity_(price_sensitivity),
           min_order_qty_(min_order_qty),
-          max_participation_(max_participation) {}
+          max_participation_(max_participation) {
+        if (!std::isfinite(base_participation_) || base_participation_ < 0.0 ||
+            base_participation_ > 1.0 || !std::isfinite(price_sensitivity_) ||
+            price_sensitivity_ < 0.0 || min_order_qty_ == 0 ||
+            !std::isfinite(max_participation_) || max_participation_ <= 0.0 ||
+            max_participation_ > 1.0) {
+            throw std::invalid_argument("invalid adaptive strategy parameters");
+        }
+    }
 
     std::vector<Order> generate_orders(
         uint64_t parent_order_id,
@@ -285,7 +299,12 @@ public:
                            uint64_t max_order_qty = 0)
         : participation_rate_(participation_rate),
           min_order_qty_(min_order_qty),
-          max_order_qty_(max_order_qty) {}
+          max_order_qty_(max_order_qty) {
+        if (!std::isfinite(participation_rate_) || participation_rate_ < 0.0 ||
+            participation_rate_ > 1.0 || min_order_qty_ == 0) {
+            throw std::invalid_argument("invalid POV strategy parameters");
+        }
+    }
 
     std::vector<Order> generate_orders(
         uint64_t parent_order_id,

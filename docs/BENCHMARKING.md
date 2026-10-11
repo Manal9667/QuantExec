@@ -187,9 +187,10 @@ performance characteristics or move to a different reference machine.
 
 ## 8. What this benchmark does NOT claim
 
-- It does not claim these numbers represent real historical-data
-  workloads (no verified historical dataset exists yet - see
-  `dataset.md`).
+- It does not claim these numbers represent broad real-market workloads.
+  The bundled historical file is a single AAPL/IEX session resampled to 60
+  one-minute quote snapshots; it has no trade prints or trade volume (see
+  `dataset.md` and `LIMITATIONS.md`).
 - It does not claim `matching`'s per-event cost would hold at real
   L2/L3 order-book depths - the stress datasets in `datasets/stress/`
   exercise correctness at depth edge cases, not throughput at scale.
@@ -197,3 +198,31 @@ performance characteristics or move to a different reference machine.
   deployment - this is a research/backtesting engine (see `README.md`),
   and no part of this benchmark models network, disk, or database I/O
   the way a live system would incur them.
+
+## 9. Windows workspace spot-check (2026-10-09)
+
+This is a local measurement, not a replacement for the Ubuntu reference
+baseline above. Environment: Windows 11 Pro (10.0.26200), Visual Studio 18
+2026 / MSVC toolset 14.51.36231, Release (`/O2 /Ob2 /DNDEBUG`), Python
+3.14.4, Intel processor reported as Family 6 Model 189, 8 logical
+processors. The exact CPU marketing name was not exposed by this workspace.
+
+The deterministic 20,000-event workload (seed 42) was measured with 3
+warm-up and 10 measured iterations. The final Windows run reported:
+
+| Stage | Median |
+|---|---:|
+| Parsing | 103.4654 ms |
+| Replay | 109.9378 ms |
+| Matching | 272.0205 ms |
+| Strategy logic | 0.0025 ms |
+| Full execution | 259.6484 ms |
+| Analytics | 0.0001 ms |
+
+Full-execution throughput derived from the median is **77,027 events/sec**.
+The regression gate skips comparison with the Linux reference baseline on
+Windows; these measurements are not treated as a cross-platform pass or
+failure. Profile and establish a platform-qualified reference before
+setting Windows thresholds. Peak RSS reports `-1 KB` on this Windows build
+because this harness's `getrusage` measurement is unavailable there. No
+957K events/sec result was reproduced in this workspace.

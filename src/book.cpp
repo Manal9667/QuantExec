@@ -1,9 +1,21 @@
 #include "book.h"
 #include <iostream>
 #include <algorithm>
+#include <cmath>
 #include <iomanip>
+#include <stdexcept>
 
 void OrderBook::add_order(const Order& order) {
+    if (order.type != OrderType::Limit || order.qty == 0 || order.filled >= order.qty ||
+        !std::isfinite(order.price) || order.price <= 0.0 ||
+        (order.side != OrderSide::Buy && order.side != OrderSide::Sell)) {
+        throw std::invalid_argument("OrderBook accepts only valid, non-empty limit orders");
+    }
+    if (order_ids.find(order.id) != order_ids.end()) {
+        throw std::invalid_argument("duplicate resting order id");
+    }
+    order_ids.insert(order.id);
+
     if (order.side == OrderSide::Buy) {
         // Add to bid side
         // If price level doesn't exist, map creates it automatically
@@ -111,7 +123,7 @@ uint64_t OrderBook::volume_at(double price, OrderSide side) const {
     return total;
 }
 
-std::deque<Order>* OrderBook::get_queue(double price, OrderSide side) {
+const std::deque<Order>* OrderBook::get_queue(double price, OrderSide side) const {
     if (side == OrderSide::Buy) {
         auto it = bids.find(price);
         if (it == bids.end()) {
@@ -125,6 +137,30 @@ std::deque<Order>* OrderBook::get_queue(double price, OrderSide side) {
         }
         return &(it->second);
     }
+}
+
+bool OrderBook::fill_front(double price, OrderSide side, uint64_t quantity) {
+    std::deque<Order>* queue = nullptr;
+    if (side == OrderSide::Buy) {
+        auto it = bids.find(price);
+        if (it != bids.end()) queue = &it->second;
+    } else {
+        auto it = asks.find(price);
+        if (it != asks.end()) queue = &it->second;
+    }
+    if (queue == nullptr || queue->empty() || quantity == 0 ||
+        quantity > queue->front().remaining()) {
+        return false;
+    }
+
+    Order& order = queue->front();
+    order.filled += quantity;
+    if (order.is_filled()) {
+        order_ids.erase(order.id);
+        queue->pop_front();
+        if (queue->empty()) remove_level(price, side);
+    }
+    return true;
 }
 
 bool OrderBook::cancel_order(uint64_t order_id, OrderSide side, double price) {
@@ -146,6 +182,7 @@ bool OrderBook::cancel_order(uint64_t order_id, OrderSide side, double price) {
         }
         
         queue.erase(order_it);
+        order_ids.erase(order_id);
         
         if (queue.empty()) {
             bids.erase(it);
@@ -170,6 +207,7 @@ bool OrderBook::cancel_order(uint64_t order_id, OrderSide side, double price) {
         }
         
         queue.erase(order_it);
+        order_ids.erase(order_id);
         
         if (queue.empty()) {
             asks.erase(it);
@@ -181,9 +219,17 @@ bool OrderBook::cancel_order(uint64_t order_id, OrderSide side, double price) {
 
 void OrderBook::remove_level(double price, OrderSide side) {
     if (side == OrderSide::Buy) {
-        bids.erase(price);
+        auto it = bids.find(price);
+        if (it != bids.end()) {
+            for (const auto& order : it->second) order_ids.erase(order.id);
+            bids.erase(it);
+        }
     } else {
-        asks.erase(price);
+        auto it = asks.find(price);
+        if (it != asks.end()) {
+            for (const auto& order : it->second) order_ids.erase(order.id);
+            asks.erase(it);
+        }
     }
 }
 
@@ -234,4 +280,5 @@ void OrderBook::print_state() const {
 void OrderBook::clear() {
     bids.clear();
     asks.clear();
+    order_ids.clear();
 }

@@ -2,6 +2,8 @@
 #include "test_util.h"
 #include <cassert>
 #include <iostream>
+#include <limits>
+#include <stdexcept>
 
 /**
  * Simple test framework (no external dependencies)
@@ -144,6 +146,41 @@ TEST(BookTest, test_cancel_nonexistent) {
     // Try to cancel order that doesn't exist
     bool cancelled = book.cancel_order(999, OrderSide::Buy, 100.0);
     assert_true("cancel non-existent returns false", !cancelled);
+}
+
+TEST(BookTest, rejects_invalid_and_duplicate_resting_orders) {
+    OrderBook book;
+    bool invalid_price_rejected = false;
+    try {
+        book.add_order({1, OrderSide::Buy, OrderType::Limit,
+                        std::numeric_limits<double>::quiet_NaN(), 10});
+    } catch (const std::invalid_argument&) {
+        invalid_price_rejected = true;
+    }
+    assert_true("non-finite price is rejected", invalid_price_rejected);
+
+    Order already_filled(3, OrderSide::Buy, OrderType::Limit, 100.0, 10);
+    already_filled.filled = already_filled.qty;
+    bool completed_order_rejected = false;
+    try {
+        book.add_order(already_filled);
+    } catch (const std::invalid_argument&) {
+        completed_order_rejected = true;
+    }
+    assert_true("already-filled order cannot rest", completed_order_rejected);
+
+    book.add_order({2, OrderSide::Buy, OrderType::Limit, 100.0, 10});
+    bool duplicate_rejected = false;
+    try {
+        book.add_order({2, OrderSide::Sell, OrderType::Limit, 101.0, 10});
+    } catch (const std::invalid_argument&) {
+        duplicate_rejected = true;
+    }
+    assert_true("duplicate resting id is rejected", duplicate_rejected);
+    assert_eq("rejected duplicate did not mutate ask side", book.ask_depth().size(), size_t(0));
+
+    assert_true("cancel releases resting id", book.cancel_order(2, OrderSide::Buy, 100.0));
+    book.add_order({2, OrderSide::Sell, OrderType::Limit, 101.0, 10});
 }
 
 /**

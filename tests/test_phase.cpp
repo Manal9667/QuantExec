@@ -109,7 +109,7 @@ TEST(PhaseTest, test_sell_side_analytics_use_adverse_price_direction) {
     ExecutionSession session;
     const auto result = session.run(
         source,
-        {Order(1, OrderSide::Sell, OrderType::Limit, 0.0, 50)},
+        {Order(1, OrderSide::Sell, OrderType::Limit, 99.0, 50)},
         100.0);
 
     EXPECT_TRUE(result.filled_quantity == 50);
@@ -118,12 +118,44 @@ TEST(PhaseTest, test_sell_side_analytics_use_adverse_price_direction) {
     EXPECT_TRUE(close_enough(result.implementation_shortfall, 50.0));
 }
 
+TEST(PhaseTest, zero_size_schedule_slots_are_skipped) {
+    TWAPAlgorithm twap;
+    const auto orders = twap.generate_orders(5, OrderSide::Buy, 1, 101.0, 3);
+    EXPECT_TRUE(orders.size() == 3);
+    EXPECT_TRUE(orders[0].qty == 1);
+    EXPECT_TRUE(orders[1].qty == 0);
+    EXPECT_TRUE(orders[2].qty == 0);
+
+    const std::vector<MarketState> states = {
+        {1, 100.0, 99.0, 101.0, 10, 10, 0, 0, 1,
+         {{99.0, 10}}, {{101.0, 10}}}
+    };
+    VectorMarketSource immediate_source(states);
+    ExecutionSession immediate_session;
+    const auto immediate = immediate_session.run(immediate_source, orders, 100.0);
+    EXPECT_TRUE(immediate.requested_quantity == 1);
+    EXPECT_TRUE(immediate.filled_quantity == 1);
+
+    VectorMarketSource delayed_source(states);
+    ExecutionSession delayed_session;
+    const auto delayed = delayed_session.run_with_latency(delayed_source, orders, 100.0, 0);
+    EXPECT_TRUE(delayed.requested_quantity == 1);
+    EXPECT_TRUE(delayed.filled_quantity == 1);
+}
+
 TEST(PhaseTest, test_invalid_algorithm_inputs) {
     TWAPAlgorithm twap;
     VWAPAlgorithm vwap;
     EXPECT_TRUE(twap.generate_orders(1, OrderSide::Buy, 100, 100.0, 0).empty());
     EXPECT_TRUE(vwap.generate_orders(1, OrderSide::Buy, 100, 100.0, -1).empty());
-    vwap.set_volume_profile({0.0, -1.0});
+    bool invalid_profile_rejected = false;
+    try {
+        vwap.set_volume_profile({0.0, -1.0});
+    } catch (const std::invalid_argument&) {
+        invalid_profile_rejected = true;
+    }
+    EXPECT_TRUE(invalid_profile_rejected);
+    vwap.set_volume_profile({0.0, 0.0});
     const auto orders = vwap.generate_orders(1, OrderSide::Buy, 100, 100.0, 2);
     EXPECT_TRUE(orders.size() == 2);
     EXPECT_TRUE(orders[0].qty + orders[1].qty == 100);

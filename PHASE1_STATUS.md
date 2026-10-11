@@ -25,23 +25,24 @@ The following are in place and working in the current repo:
 7. C++/Python integration boundary
 8. unit and integration tests for core behaviors
 
-## What is still simplified or incomplete
+## Current scope note
 
-These are the main Phase 1 gaps relative to the brief:
+This status file predates the historical-data and replay work. Its earlier
+statements that no documented historical dataset or explicit event pipeline
+exists are superseded by the current repository:
 
-1. Real historical dataset provenance is still weak
-   - the repo includes a synthetic replay fixture but not a fully documented real historical dataset
-   - this should be clarified in the final README and project framing
+- `datasets/historical/AAPL_2024-01-03_0930-1030ET.csv` has an Alpaca/IEX
+  provenance manifest, but is only 60 one-minute quote snapshots and has no
+  real trade prints or volume.
+- `MarketEvent`, `parse_market_events()`, `events_to_states()`, and
+  `ReplayController` provide an explicit parsing/replay boundary with tests.
+- Execution strategies consume normalized `MarketState` snapshots. This is
+  not full event-by-event order-book reconstruction, and queue position,
+  persistent resting orders across snapshots, and historical cancellations
+  remain outside the model.
 
-2. The normalized event pipeline is not yet fully formalized
-   - the code has a canonical MarketState abstraction
-   - it does not yet present a full vendor-independent MarketEvent normalization layer in the same explicit way the brief expects
-
-3. Replay is adequate but not yet formalized as a higher-level historical event engine
-   - it works as a deterministic source flow, but the architecture is lighter than the ideal Phase 1 replay abstraction
-
-4. The project is data-driver but not fully dataset-rigorous
-   - synthetic data is useful for engineering validation but should be clearly described as such
+The broader completion state and outstanding work are tracked in
+[`PROJECT_COMPLETION_ROADMAP.md`](PROJECT_COMPLETION_ROADMAP.md).
 
 ## Recommended next step
 

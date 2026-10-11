@@ -1,6 +1,8 @@
 #include "engine.h"
 #include <algorithm>
+#include <cmath>
 #include <iostream>
+#include <stdexcept>
 
 /**
  * submit_order()
@@ -20,6 +22,19 @@ bool MatchingEngine::cancel_order(uint64_t order_id, OrderSide side, double pric
     return book.cancel_order(order_id, side, price);
 }
 
+void MatchingEngine::validate_and_register(const Order& order, OrderType expected_type) {
+    if (order.type != expected_type || order.qty == 0 || order.filled >= order.qty ||
+        (order.side != OrderSide::Buy && order.side != OrderSide::Sell) ||
+        !std::isfinite(order.price) ||
+        (expected_type == OrderType::Limit && order.price <= 0.0) ||
+        (expected_type == OrderType::Market && order.price < 0.0)) {
+        throw std::invalid_argument("invalid order type, side, price, or quantity");
+    }
+    if (!submitted_order_ids_.insert(order.id).second) {
+        throw std::invalid_argument("duplicate order id in current book session");
+    }
+}
+
 /**
  * match_market()
  * 
@@ -35,6 +50,7 @@ bool MatchingEngine::cancel_order(uint64_t order_id, OrderSide side, double pric
  * Time: O(n log P) where n = orders matched, P = price levels
  */
 std::vector<Trade> MatchingEngine::match_market(Order order) {
+    validate_and_register(order, OrderType::Market);
     std::vector<Trade> fills;
     
     // Determine which side we're buying/selling against
@@ -56,7 +72,7 @@ std::vector<Trade> MatchingEngine::match_market(Order order) {
         }
         
         double price = *best_opposite;
-        auto* queue = book.get_queue(price, opposite_side);
+        const auto* queue = book.get_queue(price, opposite_side);
         
         // Safety check (shouldn't happen)
         if (queue == nullptr || queue->empty()) {
@@ -64,15 +80,19 @@ std::vector<Trade> MatchingEngine::match_market(Order order) {
         }
         
         // Fill against all resting orders at this price level
-        while (!queue->empty() && order.remaining() > 0) {
-            Order& resting = queue->front();
+        while (order.remaining() > 0) {
+            queue = book.get_queue(price, opposite_side);
+            if (queue == nullptr || queue->empty()) break;
+            const Order resting = queue->front();
             
             // How much can we fill?
             uint64_t fill_qty = std::min(order.remaining(), resting.remaining());
             
             // Update filled amounts
             order.filled += fill_qty;
-            resting.filled += fill_qty;
+            if (!book.fill_front(price, opposite_side, fill_qty)) {
+                throw std::logic_error("failed to apply fill to resting order");
+            }
             
             // Record the trade
             // Note: buy_order_id is always the buyer, sell_order_id is always the seller
@@ -85,15 +105,6 @@ std::vector<Trade> MatchingEngine::match_market(Order order) {
             fills.push_back(trade);
             trades.push_back(trade);
             
-            // Remove resting order if fully filled
-            if (resting.remaining() == 0) {
-                queue->pop_front();
-            }
-        }
-        
-        // Clean up empty price level
-        if (queue && queue->empty()) {
-            book.remove_level(price, opposite_side);
         }
     }
     
@@ -116,6 +127,7 @@ std::vector<Trade> MatchingEngine::match_market(Order order) {
  * Time: O(n log P)
  */
 std::vector<Trade> MatchingEngine::match_limit(Order order) {
+    validate_and_register(order, OrderType::Limit);
     std::vector<Trade> fills;
     
     OrderSide opposite_side = (order.side == OrderSide::Buy) ? OrderSide::Sell : OrderSide::Buy;
@@ -148,19 +160,23 @@ std::vector<Trade> MatchingEngine::match_limit(Order order) {
             }
         }
         
-        auto* queue = book.get_queue(price, opposite_side);
+        const auto* queue = book.get_queue(price, opposite_side);
         if (queue == nullptr || queue->empty()) {
             break;
         }
         
         // Match against orders at this level
-        while (!queue->empty() && order.remaining() > 0) {
-            Order& resting = queue->front();
+        while (order.remaining() > 0) {
+            queue = book.get_queue(price, opposite_side);
+            if (queue == nullptr || queue->empty()) break;
+            const Order resting = queue->front();
             
             uint64_t fill_qty = std::min(order.remaining(), resting.remaining());
             
             order.filled += fill_qty;
-            resting.filled += fill_qty;
+            if (!book.fill_front(price, opposite_side, fill_qty)) {
+                throw std::logic_error("failed to apply fill to resting order");
+            }
             
             Trade trade(
                 (order.side == OrderSide::Buy) ? order.id : resting.id,
@@ -171,13 +187,6 @@ std::vector<Trade> MatchingEngine::match_limit(Order order) {
             fills.push_back(trade);
             trades.push_back(trade);
             
-            if (resting.remaining() == 0) {
-                queue->pop_front();
-            }
-        }
-        
-        if (queue && queue->empty()) {
-            book.remove_level(price, opposite_side);
         }
     }
     

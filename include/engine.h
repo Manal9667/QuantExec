@@ -3,6 +3,7 @@
 
 #include "types.h"
 #include "book.h"
+#include <unordered_set>
 #include <vector>
 #include <memory>
 
@@ -33,12 +34,14 @@ class MatchingEngine {
 private:
     OrderBook book;                    // The order book
     std::vector<Trade> trades;         // All trades executed so far
+    std::unordered_set<uint64_t> submitted_order_ids_;
     
     /**
      * Helper: Try to fill one resting order against incoming order
      * Returns quantity that was filled
      */
     uint64_t fill_against_resting(Order& incoming, Order& resting, double price);
+    void validate_and_register(const Order& order, OrderType expected_type);
     
 public:
     /**
@@ -61,7 +64,10 @@ public:
      */
     bool cancel_order(uint64_t order_id, OrderSide side, double price);
 
-    void clear_book() { book.clear(); }
+    void clear_book() {
+        book.clear();
+        submitted_order_ids_.clear();
+    }
     
     /**
      * Match a market order

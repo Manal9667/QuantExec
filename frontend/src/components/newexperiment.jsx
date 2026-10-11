@@ -22,6 +22,67 @@ const DEFAULTS = {
   impact_eta: 0.1,
 };
 
+const PRESETS = [
+  {
+    id: "synthetic",
+    label: "Synthetic walkthrough",
+    summary: "Deterministic baseline for the first demo run.",
+    values: {
+      symbol: "SYN",
+      dataset: "datasets/sample_synthetic.csv",
+      side: "BUY",
+      quantity: 1000,
+      strategy: "TWAP",
+      slices: 6,
+      latency_ms: 0,
+      commission_bps: 0.5,
+      exchange_fee_bps: 0.1,
+      fixed_fee_per_fill: 0,
+      impact_enabled: false,
+      impact_eta: 0.1,
+    },
+  },
+  {
+    id: "historical-aapl",
+    label: "Historical AAPL",
+    summary: "Real market data with a VWAP-style workload.",
+    values: {
+      symbol: "AAPL",
+      dataset: "datasets/historical/AAPL_2024-01-03_0930-1030ET.csv",
+      side: "BUY",
+      quantity: 250,
+      strategy: "VWAP",
+      slices: 8,
+      latency_ms: 40,
+      commission_bps: 0.5,
+      exchange_fee_bps: 0.1,
+      fixed_fee_per_fill: 0,
+      impact_enabled: false,
+      impact_eta: 0.15,
+    },
+  },
+  {
+    id: "thin-liquidity",
+    label: "Thin liquidity stress",
+    summary: "Comparative stress case for limited depth.",
+    values: {
+      symbol: "SYN",
+      dataset: "datasets/stress/thin_liquidity.csv",
+      side: "SELL",
+      quantity: 1500,
+      strategy: "POV",
+      participation_rate: 0.15,
+      min_order_qty: 25,
+      max_order_qty: 150,
+      commission_bps: 0.7,
+      exchange_fee_bps: 0.2,
+      fixed_fee_per_fill: 0.05,
+      impact_enabled: true,
+      impact_eta: 0.2,
+    },
+  },
+];
+
 export default function NewExperiment({ onCreated }) {
   const [strategies, setStrategies] = useState([]);
   const [form, setForm] = useState(DEFAULTS);
@@ -31,6 +92,10 @@ export default function NewExperiment({ onCreated }) {
   useEffect(() => {
     api.listStrategies().then(setStrategies).catch(() => {});
   }, []);
+
+  function applyPreset(preset) {
+    setForm({ ...DEFAULTS, ...preset.values });
+  }
 
   const set = (key) => (e) => {
     const value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
@@ -87,6 +152,21 @@ export default function NewExperiment({ onCreated }) {
         Runs the real C++ execution engine against the dataset below. Nothing here is simulated
         in the browser - the numbers you'll see next come back from the backend.
       </p>
+
+      <div className="preset-row" aria-label="Quick-start presets">
+        {PRESETS.map((preset) => (
+          <button
+            key={preset.id}
+            type="button"
+            className="preset-button"
+            onClick={() => applyPreset(preset)}
+          >
+            <span>{preset.label}</span>
+            <small>{preset.summary}</small>
+          </button>
+        ))}
+      </div>
+
       <form onSubmit={submit}>
         <div className="form-grid">
           <label>Symbol

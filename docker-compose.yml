@@ -9,6 +9,9 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
+    environment:
+      QUANTEXEC_CORS_ORIGINS: "${QUANTEXEC_CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}"
+      QUANTEXEC_DB_PATH: /app/experiments/experiments.db
     ports:
       - "8000:8000"
     volumes:
@@ -24,6 +27,8 @@ services:
     build:
       context: .
       dockerfile: frontend/dockerfile
+      args:
+        VITE_API_BASE_URL: "${VITE_API_BASE_URL:-http://localhost:8000}"
     ports:
       - "5173:5173"
     depends_on:

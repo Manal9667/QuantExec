@@ -3,7 +3,6 @@ Testing/
 **/__pycache__/
 *.pyc
 **/node_modules/
-frontend/dist/
 *.log
 phase_*_test.csv
 .env

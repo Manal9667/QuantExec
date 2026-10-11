@@ -5,6 +5,7 @@
 #include <map>
 #include <deque>
 #include <optional>
+#include <unordered_set>
 #include <vector>
 
 /**
@@ -40,6 +41,7 @@ private:
     std::map<double, std::deque<Order>, std::greater<double>> bids;
 
     std::map<double, std::deque<Order>> asks;
+    std::unordered_set<uint64_t> order_ids;
     
 public:
     /**
@@ -107,7 +109,9 @@ public:
      */
     std::vector<BookLevel> ask_depth(size_t max_levels = 10) const;
     
-    std::deque<Order>* get_queue(double price, OrderSide side);
+    const std::deque<Order>* get_queue(double price, OrderSide side) const;
+
+    bool fill_front(double price, OrderSide side, uint64_t quantity);
     
     void remove_level(double price, OrderSide side);
 

@@ -3,6 +3,21 @@
 #include <numeric>
 #include <stdexcept>
 
+namespace {
+
+uint64_t round_capped_quantity(double raw_quantity, uint64_t cap) {
+    if (cap == 0 || std::isnan(raw_quantity) || raw_quantity <= 0.0) {
+        return 0;
+    }
+    if (!std::isfinite(raw_quantity) ||
+        raw_quantity >= static_cast<double>(cap)) {
+        return cap;
+    }
+    return std::min(static_cast<uint64_t>(raw_quantity + 0.5), cap);
+}
+
+} // namespace
+
 /**
  * TWAPAlgorithm::generate_orders()
  * 
@@ -191,7 +206,8 @@ uint64_t AdaptiveAlgorithm::next_order_qty(double mid_price,
     // Favorability: signed fractional price improvement vs arrival for this
     // side. No signal (0) when either price is non-positive.
     double favorability = 0.0;
-    if (mid_price > 0.0 && arrival_price > 0.0) {
+    if (std::isfinite(mid_price) && std::isfinite(arrival_price) &&
+        mid_price > 0.0 && arrival_price > 0.0) {
         const double direction = side == OrderSide::Buy ? 1.0 : -1.0;
         favorability = direction * (arrival_price - mid_price) / arrival_price;
     }
@@ -205,11 +221,7 @@ uint64_t AdaptiveAlgorithm::next_order_qty(double mid_price,
     }
 
     double raw = fraction * static_cast<double>(remaining_qty);
-    uint64_t qty = static_cast<uint64_t>(raw + 0.5); // round to nearest share
-
-    if (qty > remaining_qty) {
-        qty = remaining_qty;
-    }
+    uint64_t qty = round_capped_quantity(raw, remaining_qty);
     // Guarantee forward progress: never stall on a neutral/unfavorable event.
     if (qty < min_order_qty_) {
         qty = std::min(min_order_qty_, remaining_qty);
@@ -254,14 +266,10 @@ uint64_t POVAlgorithm::next_order_qty(uint64_t event_market_volume, uint64_t rem
     }
 
     double raw = participation_rate_ * static_cast<double>(event_market_volume);
-    uint64_t qty = static_cast<uint64_t>(raw + 0.5); // round to nearest share
-
-    if (max_order_qty_ > 0 && qty > max_order_qty_) {
-        qty = max_order_qty_;
-    }
-    if (qty > remaining_qty) {
-        qty = remaining_qty;
-    }
+    const uint64_t cap = max_order_qty_ > 0
+        ? std::min(max_order_qty_, remaining_qty)
+        : remaining_qty;
+    uint64_t qty = round_capped_quantity(raw, cap);
     if (qty < min_order_qty_) {
         return 0;
     }

@@ -1,5 +1,6 @@
 {
   "note": "Performance baseline for scripts/check_perf_regression.py. Numbers are machine-specific; regenerate on your own reference machine with `--update-baseline`. The check applies tolerance_multiplier so only large (algorithmic) regressions fail. See docs/BENCHMARKING.md.",
+  "platform": "linux",
   "workload": {
     "events": 20000,
     "seed": 42,

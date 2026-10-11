@@ -90,6 +90,25 @@ scripts expect for a local run. The key portability detail is that on
 Windows the compiled Python extension sits under `build/Release`, not
 `build`.
 
+### Docker demo
+
+Docker Compose builds the Linux C++ engine and Python extension, starts the
+API, then serves the static dashboard:
+
+```powershell
+Copy-Item .env.example .env
+docker compose up --build
+```
+
+Open `http://localhost:5173`; the API health check and persisted SQLite
+database are managed by Compose. The defaults allow browser requests only
+from the local dashboard origins. For a hosted demo, set
+`QUANTEXEC_CORS_ORIGINS` to the exact public frontend origin and
+`VITE_API_BASE_URL` to the public API origin before building. The frontend
+value is embedded in the static bundle at image-build time, so changing it
+requires rebuilding the frontend image. Terminate HTTPS at the hosting proxy;
+Compose is a local demo setup, not a complete public-service security layer.
+
 ## Data: synthetic vs. historical
 
 This repository ships **both** a synthetic fixture and one real historical

@@ -2,6 +2,8 @@
 #include "test_util.h"
 #include <cassert>
 #include <iostream>
+#include <limits>
+#include <stdexcept>
 
 
 /**
@@ -190,6 +192,46 @@ TEST(EngineTest, test_fill_both_sides_correctly) {
     assert_eq("sell_order_id is sell", fills[0].sell_order_id, 1UL);
     assert_eq("price is correct", fills[0].price, 100.0);
     assert_eq("qty is correct", fills[0].qty, 100UL);
+}
+
+TEST(EngineTest, rejects_invalid_and_duplicate_submissions) {
+    MatchingEngine engine;
+    bool zero_quantity_rejected = false;
+    try {
+        engine.submit_order({1, OrderSide::Buy, OrderType::Market, 0.0, 0});
+    } catch (const std::invalid_argument&) {
+        zero_quantity_rejected = true;
+    }
+    assert_true("zero quantity is rejected", zero_quantity_rejected);
+
+    Order already_filled(4, OrderSide::Buy, OrderType::Market, 0.0, 1);
+    already_filled.filled = 1;
+    bool completed_order_rejected = false;
+    try {
+        engine.submit_order(already_filled);
+    } catch (const std::invalid_argument&) {
+        completed_order_rejected = true;
+    }
+    assert_true("already-filled incoming order is rejected", completed_order_rejected);
+
+    engine.submit_order({2, OrderSide::Sell, OrderType::Limit, 100.0, 10});
+    bool duplicate_rejected = false;
+    try {
+        engine.submit_order({2, OrderSide::Buy, OrderType::Market, 0.0, 1});
+    } catch (const std::invalid_argument&) {
+        duplicate_rejected = true;
+    }
+    assert_true("duplicate submitted id is rejected", duplicate_rejected);
+    assert_eq("resting sell remains intact", engine.get_book().volume_at(100.0, OrderSide::Sell), 10UL);
+
+    bool non_finite_price_rejected = false;
+    try {
+        engine.submit_order({3, OrderSide::Buy, OrderType::Limit,
+                             std::numeric_limits<double>::infinity(), 1});
+    } catch (const std::invalid_argument&) {
+        non_finite_price_rejected = true;
+    }
+    assert_true("non-finite limit price is rejected", non_finite_price_rejected);
 }
 
 int main(int argc, char** argv) {

@@ -41,6 +41,28 @@ The target is not an exchange simulator or a live broker. The target is a trustw
 - Benchmark numbers need documented hardware, workload, methodology, and memory measurements.
 - Phase 2 service and dashboard code exists, but production readiness and live-trading safety are outside the current completion target.
 
+### Current audit snapshot (2026-10-09)
+
+Verified in the Windows workspace after the core validation changes:
+
+- Release build succeeds; all 10 CTest suites pass.
+- Backend pytest suite passes 57/57; project Python tests pass 20 with one opt-in live test skipped.
+- Frontend Vitest passes 9/9 and the Vite production build succeeds.
+- The example synthetic experiment produces byte-identical output on two runs.
+- TWAP/VWAP comparison runs end to end on the bundled AAPL sample. The sample is real IEX top-of-book quotes resampled to 60 one-minute rows, has no trade prints or volume, and is not suitable for meaningful POV or broad strategy claims.
+- MSVC AddressSanitizer passes the focused `test_book`, `test_engine`, and `test_algorithms` suites; the remaining C++ suites and static-analysis tools have not yet been run under sanitizer/static analysis.
+- The performance gate's Windows JSON-path bug is fixed. A serial 20,000-event run measured 77,027 events/sec (full-execution median 259.65 ms). The gate skips comparison with the committed Ubuntu baseline on Windows rather than mixing platforms. Windows RSS is unavailable (`-1 KB`); no platform baseline was overwritten.
+- `npm audit` reports 7 development-tree advisories (including critical Vitest findings); `npm audit --omit=dev` reports none. Available fixes require major Vite/Vitest upgrades and have not been applied as part of this audit.
+
+**Completion status: not complete against the project-completion mandate.** Prioritized remaining checklist:
+
+1. [ ] Re-profile and explain the Windows benchmark discrepancy; record platform-qualified reference measurements, supported memory data, and rerun the regression gate on its intended CI platform without weakening thresholds.
+2. [ ] Acquire or document access to additional historical sessions with actual trade volume; then run comparable multi-session strategy experiments and report distributions. The current single-session quote-only sample cannot validate POV or general strategy performance.
+3. [x] Validate strategy parameters at construction/configuration boundaries, including invalid VWAP profiles and POV/adaptive rates; tests also cover maximum-quantity rounding.
+4. [ ] Extend ASan coverage to the remaining C++ suites, run available static analysis, and broaden UI tests beyond the experiment form/API wrapper.
+5. [ ] Plan compatible Vite/Vitest security upgrades and rerun frontend tests/build/audit.
+6. [ ] Keep phase/status documentation aligned with the current implementation and clearly separate verified behavior from research limitations.
+
 ---
 
 ## 3. Completion Strategy

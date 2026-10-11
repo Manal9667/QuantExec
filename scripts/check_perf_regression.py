@@ -98,6 +98,7 @@ def _write_baseline(path: Path, workload: dict, measure: dict, multiplier: float
             "`--update-baseline`. The check applies tolerance_multiplier so only "
             "large (algorithmic) regressions fail. See docs/BENCHMARKING.md."
         ),
+        "platform": sys.platform,
         "workload": workload,
         "tolerance_multiplier": multiplier,
         "baseline": {
@@ -196,6 +197,14 @@ def main() -> int:
             f"No thresholds file at {args.thresholds}. Create one first with "
             f"--update-baseline (on a quiet reference machine)."
         )
+    baseline_platform = existing.get("platform")
+    if baseline_platform and baseline_platform != sys.platform:
+        print(
+            f"Skipping threshold comparison: baseline platform is "
+            f"{baseline_platform}, current platform is {sys.platform}. "
+            "Record a platform-specific baseline before comparing."
+        )
+        return 0
     return _check(existing, measure)
 
 
